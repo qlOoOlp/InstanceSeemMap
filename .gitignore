@@ -1,2 +1,10 @@
+#Ignore cache files
+cache*
+*pyc
+**/__pycache__/
+#Ignore data files
+Data*
+
+# Ignore checkpoints
 *.ckpt
 *.pt

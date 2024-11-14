@@ -47,6 +47,9 @@ def parse_args():
                             help="Dimension of the SEEM feature vector (Default: 512)")
         parser.add_argument("--threshold-confidence", type=float, default=0.5,
                             help="Threshold of confidence score for SEEM (Default: 0.5)")
+        parser.add_argument("--seem-type", type=str, default="base",
+                            choices=["base","tracking","dbscan","floodfill"],
+                            help="Type of SEEM prototype to use (Default: base)")
     elif args.vlm == "lseg":
         parser.add_argument('--lseg-ckpt', type=str, default='/home/hong/VLMAPS/vlmaps_oop/lseg/ckpt/demo_e200.ckpt')
         parser.add_argument('--crop-size', type=int, default=480)
