@@ -13,6 +13,22 @@ from utils.get_transform import get_transform
 from mapbuilder.map.seemmap import SeemMap
 from mapbuilder.utils.datamanager import DataManager, DataManager4Real
 
-class SeemMap(SeemMap):
+class SeemMap_floodfill(SeemMap):
     def __init__(self, config:DictConfig):
         super().__init__(config)
+
+
+    def processing(self):
+        raise NotImplementedError
+    
+    def postprocessing(self):
+        raise NotImplementedError
+    
+    def preprocessing(self):
+        raise NotImplementedError
+    
+    def _init_map(self):
+        raise NotImplementedError
+    
+    def save_map(self):
+        raise NotImplementedError

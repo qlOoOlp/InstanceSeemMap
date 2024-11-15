@@ -44,7 +44,7 @@ class DataManager():
             raise ValueError("Data length mismatch")
 
         self.__numData = len(self.__rgblist)
-        self.__count = 0
+        self.__count = -1
         print(f"Data loaded: {self.__numData} data")
 
     def load_map(self, **kwargs)->Dict[str, Union[dict,NDArray]]:
@@ -70,6 +70,7 @@ class DataManager():
             np.save(map_save_path, value, allow_pickle=True)
 
     def data_getter(self)->Tuple[NDArray,NDArray,Tuple[NDArray,NDArray]]:
+        self.__count += 1
         if self.__count >= self.__numData:
             raise ValueError("Data out of range")
         rgb_dir = self.__rgblist[self.__count]
@@ -78,7 +79,6 @@ class DataManager():
         rgb = rgbLoader(rgb_dir)
         depth = depthLoader(depth_dir)
         pose = poseLoader(pose_dir)
-        self.__count += 1
         return rgb, depth, pose
 
     def check_path(self, *args)->None:

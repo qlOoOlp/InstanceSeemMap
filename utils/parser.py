@@ -49,7 +49,17 @@ def parse_args():
                             help="Threshold of confidence score for SEEM (Default: 0.5)")
         parser.add_argument("--seem-type", type=str, default="base",
                             choices=["base","tracking","dbscan","floodfill"],
-                            help="Type of SEEM prototype to use (Default: base)")
+                            help="Type of SEEM to use (Default: base)")
+        seem_args = parser.parse_args()
+        if seem_args.seem_type != "base":
+            parser.add_argument("--no-submap", action="store_false",
+                                help="Do not make rgb map")
+            parser.add_argument("--using-seemID", action="store_true",
+                                help = "Use SEEM category ID for instance ID")
+            parser.add_argument("--upsample", action="store_true",
+                                help="Upsample the SEEM feature map before using it")
+            parser.add_argument("--preprocess-IQR", action="store_true",
+                                help="Apply IQR-based preprocessing to remove outlier depth values for each instance")
     elif args.vlm == "lseg":
         parser.add_argument('--lseg-ckpt', type=str, default='/home/hong/VLMAPS/vlmaps_oop/lseg/ckpt/demo_e200.ckpt')
         parser.add_argument('--crop-size', type=int, default=480)

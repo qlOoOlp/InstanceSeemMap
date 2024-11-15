@@ -9,31 +9,23 @@ import os
 from seem.utils.get_feat import get_SEEM_feat
 from seem.base_model import build_vl_model
 from utils.mapping_utils import project_point, pos2grid_id, transform_pc, depth2pc, depth2pc4Real, get_sim_cam_mat, get_sim_cam_mat4Real
-from utils.get_transform import get_transform
+# from utils.get_transform import get_transform
 from mapbuilder.map.map import Map
-from mapbuilder.utils.datamanager import DataManager, DataManager4Real
+# from mapbuilder.utils.datamanager import DataManager, DataManager4Real
+from abc import abstractmethod
 
 class SeemMap(Map):
     def __init__(self, config:DictConfig):
-        self.config = config
+        super().__init__(config)
         self.feat_dim = self.config["feat_dim"]
-        self.device = self.config["device"]
-        self.data_type = self.config["data_type"]
-        self.root_path = self.config["root_path"]
-        self.data_path = os.path.join(self.root_path, f"{self.data_type}/{self.config['scene_id']}")
-        self.map_path = os.path.join(self.data_path, f"map/{self.config['scene_id']}_{self.config['version']}")
-        if self.data_type == "rtabmap":
-            self.datamanager = DataManager4Real(version=self.config["version"], data_path=self.data_path, map_path=self.map_path)
-        else: self.datamanager = DataManager(version=self.config["version"], data_path=self.data_path, map_path=self.map_path)        
         self._setup_SEEM()
-        self.start_map()
 
 
     def _setup_SEEM(self):
         rgb_shape, _ = self.datamanager.get_data_shape()
         self.model = build_vl_model("seem", input_size = rgb_shape[0])
 
-
+    # @abstractmethod
     def processing(self):
         tf_list = []
         print("Processing data...")
@@ -105,15 +97,18 @@ class SeemMap(Map):
         return map_emb
 
     
+    # @abstractmethod
     def postprocessing(self):
         raise NotImplementedError
     
+    # @abstractmethod
     def preprocessing(self):
         raise NotImplementedError
     
     def _load_map(self):
         raise NotImplementedError
     
+    # @abstractmethod
     def _init_map(self):
         self.color_top_down_height = np.zeros((self.config["gs"], self.config["gs"]), dtype=np.float32)
         self.color_top_down = np.zeros((self.config["gs"], self.config["gs"], 3), dtype=np.uint8)
@@ -125,6 +120,7 @@ class SeemMap(Map):
         self._init_map()
         self.save_map()
     
+    # @abstractmethod
     def save_map(self):
         self.datamanager.save_map(color_top_down=self.color_top_down,
                                   grid=self.grid,

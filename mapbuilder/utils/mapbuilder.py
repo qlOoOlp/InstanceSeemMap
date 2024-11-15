@@ -22,7 +22,8 @@ class MapBuilder():
             elif self.conf["seem_type"]=="dbscan" : self.map = SeemMap_dbscan(self.conf)
             elif self.conf["seem_type"]=="floodfill" : self.map = SeemMap_floodfill(self.conf)
     def buildmap(self):
+        print("#"*100)
         self.map.start_map()
         self.map.processing()
         self.map.save_map()
-        print("Map building done")
+        print("="*(len("Map building done")+10),"Map building done","#"*100,sep='\n')

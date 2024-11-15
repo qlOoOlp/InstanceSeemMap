@@ -24,18 +24,16 @@ CLIP_FEAT_DIM_DICT = {'RN50': 1024, 'RN101': 512, 'RN50x4': 640, 'RN50x16': 768,
 class LsegMap(Map):
     def __init__(self, config:DictConfig):
         self.config = config
-        self.feat_dim = CLIP_FEAT_DIM_DICT[self.config["clip_version"]]
         self.device = self.config["device"]
         self.data_type = self.config["data_type"]
         self.root_path = self.config["root_path"]
         self.data_path = os.path.join(self.root_path, f"{self.data_type}/{self.config['scene_id']}")
         self.map_path = os.path.join(self.data_path, f"map/{self.config['scene_id']}_{self.config['version']}")
-        self._setup_CLIP()
-
         if self.data_type == "rtabmap":
             self.datamanager = DataManager4Real(version=self.config["version"], data_path=self.data_path, map_path=self.map_path)
         else: self.datamanager = DataManager(version=self.config["version"], data_path=self.data_path, map_path=self.map_path)
-        self.start_map()
+        self.feat_dim = CLIP_FEAT_DIM_DICT[self.config["clip_version"]]
+        self._setup_CLIP()
 
 
     def _setup_CLIP(self):
