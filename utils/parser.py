@@ -32,13 +32,13 @@ def parse_args():
                         help="Camera height from the ground [m] (Default: 1.5)")
     parser.add_argument("--max-depth", type=int, default=3,
                         help="Maximum depth value [m] (Default: 3)")
+    parser.add_argument("--min-depth", type=int, default=0.1,
+                        help="Minimum depth value [m] (Default: 0.1)")
 
     
     args = parser.parse_args()
     parser.add_argument("--version", type=str, default=args.vlm,
                         help="Version name to append to the output map name (e.g., grid_lseg_v1.npy)")
-
-
 
 
     args, remaining_args = parser.parse_known_args()
@@ -60,6 +60,18 @@ def parse_args():
                                 help="Upsample the SEEM feature map before using it")
             parser.add_argument("--preprocess-IQR", action="store_true",
                                 help="Apply IQR-based preprocessing to remove outlier depth values for each instance")
+            parser.add_argument("--min-size-denoising-after-projection", type=int, default=5,
+                                help="Minimum size of instance after denoising projected features to keep it (Default: 5)")
+            parser.add_argument("--threshold-pixelSize", type=int, default=25,
+                                help="Threshold of pixel size for SEEM feature (Default: 25)")
+            parser.add_argument("--threshold-semSim", type=float, default=0.85,
+                                help="Threshold of semantic similarity for SEEM feature (Default: 0.85)")
+            parser.add_argument("--threshold-geoSim", type=float, default=0.4,
+                                help="Threshold of geometric similarity for SEEM feature (Default: 0.4)")
+            parser.add_argument("--threshold-bbox", type=float, default=0.4,
+                                help="Threshold of bbox iou (Default: 0.4)")
+            parser.add_argument("--no-postprocessing", action="store_false",
+                                help="Do not apply postprocessing to the SEEM feature map")
     elif args.vlm == "lseg":
         parser.add_argument('--lseg-ckpt', type=str, default='/home/hong/VLMAPS/vlmaps_oop/lseg/ckpt/demo_e200.ckpt')
         parser.add_argument('--crop-size', type=int, default=480)

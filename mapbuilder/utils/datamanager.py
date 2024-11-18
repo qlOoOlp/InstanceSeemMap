@@ -91,6 +91,15 @@ class DataManager():
         depth = depthLoader(self.__depthlist[0])
         return rgb.shape, depth.shape
 
+    def managing_temp(self, type: int, **kwargs):
+        if type == 0: # set temp path
+            return os.path.join(kwargs["temp_dir"], kwargs["temp_name"])
+        elif type == 1 : # save temp
+            np.save(kwargs["instance_save_path"], kwargs["instance"])
+        else: # type == 2, load temp
+            return np.load(kwargs["instance_save_path"])
+
+
     @property
     def numData(self):
         return self.__numData

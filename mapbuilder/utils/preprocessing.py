@@ -5,7 +5,7 @@ from numpy.typing import NDArray
 
 
 
-def IQR(map_idx:NDArray, pc:NDArray, depth_shape:Tuple[int,int], h_ratio:float, w_ratio:float)-> NDArray:
+def IQR(map_idx:NDArray, pc:NDArray, depth_shape:Tuple[int,int], h_ratio:float, w_ratio:float, max_depth:float=3, min_depth:float=0.1)-> NDArray:
     for id in np.unique(map_idx):
         if id == 0 : continue
         feat_mask = (map_idx == id).astype(np.uint8)
@@ -14,7 +14,7 @@ def IQR(map_idx:NDArray, pc:NDArray, depth_shape:Tuple[int,int], h_ratio:float, 
             new_i = int(i * h_ratio)
             new_j = int(j * w_ratio)
             depth_val = pc[:,new_i*depth_shape[1]+new_j][2]
-            if depth_val < 0.1 or depth_val > 3:
+            if depth_val < min_depth or depth_val > max_depth:
                 map_idx[i,j] = 0
                 continue
             depths[(i,j)] = depth_val
@@ -35,3 +35,12 @@ def IQR(map_idx:NDArray, pc:NDArray, depth_shape:Tuple[int,int], h_ratio:float, 
     return map_idx
 
 
+def depth_filtering(map_idx:NDArray, pc:NDArray, depth_shape:Tuple[int,int], h_ratio:float, w_ratio:float, max_depth:float=3, min_depth:float=0.1) -> NDArray:
+    for i in range(map_idx.shape[0]):
+        for j in range(map_idx.shape[1]):
+            new_i = int(i * h_ratio)
+            new_j = int(j * w_ratio)
+            if pc[1,new_i*depth_shape[1]+new_j] < min_depth or pc[1,new_i*depth_shape[1]+new_j] > max_depth:
+                map_idx[i,j] = 0
+                continue
+    return map_idx
