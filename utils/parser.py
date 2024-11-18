@@ -36,12 +36,13 @@ def parse_args():
                         help="Minimum depth value [m] (Default: 0.1)")
 
     
-    args = parser.parse_args()
-    parser.add_argument("--version", type=str, default=args.vlm,
-                        help="Version name to append to the output map name (e.g., grid_lseg_v1.npy)")
+    # args = parser.parse_args()
 
 
     args, remaining_args = parser.parse_known_args()
+    parser.add_argument("--version", type=str, default=args.vlm,
+                        help="Version name to append to the output map name (e.g., grid_lseg_v1.npy)")
+    
     if args.vlm == "seem":
         parser.add_argument("--feat-dim", type=int, default=512,
                             help="Dimension of the SEEM feature vector (Default: 512)")
@@ -50,15 +51,15 @@ def parse_args():
         parser.add_argument("--seem-type", type=str, default="base",
                             choices=["base","tracking","dbscan","floodfill"],
                             help="Type of SEEM to use (Default: base)")
-        seem_args = parser.parse_args()
-        if seem_args.seem_type != "base":
+        args, remaining_args = parser.parse_known_args(remaining_args)
+        if args.seem_type != "base":
             parser.add_argument("--no-submap", action="store_false",
                                 help="Do not make rgb map")
             parser.add_argument("--using-seemID", action="store_true",
                                 help = "Use SEEM category ID for instance ID")
             parser.add_argument("--upsample", action="store_true",
                                 help="Upsample the SEEM feature map before using it")
-            parser.add_argument("--preprocess-IQR", action="store_true",
+            parser.add_argument("--no-IQR", action="store_false",
                                 help="Apply IQR-based preprocessing to remove outlier depth values for each instance")
             parser.add_argument("--min-size-denoising-after-projection", type=int, default=5,
                                 help="Minimum size of instance after denoising projected features to keep it (Default: 5)")

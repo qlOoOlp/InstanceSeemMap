@@ -454,7 +454,7 @@ def save_map(save_path, map):
 
 def load_map(load_path):
     with open(load_path, "rb") as f:
-        map = np.load(f)
+        map = np.load(f, allow_pickle=True)
     return map
 
 

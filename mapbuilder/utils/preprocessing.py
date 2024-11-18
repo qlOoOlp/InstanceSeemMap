@@ -40,7 +40,8 @@ def depth_filtering(map_idx:NDArray, pc:NDArray, depth_shape:Tuple[int,int], h_r
         for j in range(map_idx.shape[1]):
             new_i = int(i * h_ratio)
             new_j = int(j * w_ratio)
-            if pc[1,new_i*depth_shape[1]+new_j] < min_depth or pc[1,new_i*depth_shape[1]+new_j] > max_depth:
+            depth_val = pc[:,new_i*depth_shape[1]+new_j][2]
+            if depth_val < min_depth or depth_val > max_depth:
                 map_idx[i,j] = 0
                 continue
     return map_idx

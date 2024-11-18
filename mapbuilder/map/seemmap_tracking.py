@@ -7,6 +7,8 @@ from tqdm import tqdm
 import os
 from scipy.ndimage import label
 import tempfile
+from collections import Counter
+from skimage.transform import resize
 
 from seem.utils.get_feat import get_SEEM_feat
 from seem.base_model import build_vl_model
@@ -22,7 +24,7 @@ class SeemMap_tracking(SeemMap):
         self.bool_submap = self.config["no_submap"]
         self.bool_seemID = self.config["using_seemID"]
         self.bool_upsample = self.config["upsample"]
-        self.bool_IQR = self.config["preprocess_IQR"]
+        self.bool_IQR = self.config["no_IQR"]
         self.bool_postprocess = self.config["no_postprocessing"]
 
     def processing(self):
@@ -44,6 +46,15 @@ class SeemMap_tracking(SeemMap):
                 tf = init_tf_inv @ pose
 
                 map_idx, map_conf, embeddings, category_dict = get_SEEM_feat(self.model, rgb, self.config["threshold_confidence"])
+
+                if self.bool_upsample:
+                    upsampling_resolution = (depth.shape[0], depth.shape[1])
+                    combined = np.stack((map_idx, map_conf), axis=-1)
+                    upsampled_combined = resize(combined, upsampling_resolution, order=0, preserve_range=True, anti_aliasing=False)
+                    map_idx = upsampled_combined[:, :, 0].astype(np.uint8)
+                    map_conf = upsampled_combined[:, :, 1]
+
+
                 if self.data_type == "rtabmap":
                     pc, mask = depth2pc4Real(depth, self.datamanager.projection_matrix, rgb.shape[:2], min_depth=0.5, max_depth=self.config["max_depth"])
                     # shuffle_mask = np.arange(pc.shape[1])
@@ -71,8 +82,10 @@ class SeemMap_tracking(SeemMap):
                 h_ratio = depth.shape[0] / map_idx.shape[0]
                 w_ratio = depth.shape[1] / map_idx.shape[1]
 
+
+
                 # depth vaule filtering
-                if h_ratio != 4 or w_ratio != 4:
+                if not self.bool_upsample and (h_ratio != 4 or w_ratio != 4):
                     raise ValueError(f"Ratio between depth and SEEM Feature map is not 4: h_ratio = {h_ratio}, w_ratio = {w_ratio}")
                 if self.bool_IQR:  map_idx = IQR(map_idx, pc, depth_shape, h_ratio, w_ratio, self.config["max_depth"], self.config["min_depth"])
                 else: map_idx = depth_filtering(map_idx, pc, depth_shape, h_ratio, w_ratio, self.config["max_depth"], self.config["min_depth"])
@@ -96,7 +109,7 @@ class SeemMap_tracking(SeemMap):
                         x,y = pos2grid_id(self.config["gs"],self.config["cs"],pp[0],pp[2])
                         feat_map[y,x] = pp[1]
                         feat_map_bool[y,x]=True
-                    feat_map_bool = self.removing_noise(feat_map_bool, self.config["min_size_denoising_after_projection"])
+                    feat_map_bool = self.denoising(feat_map_bool, self.config["min_size_denoising_after_projection"])
                     if np.sum(feat_map_bool) < self.config["threshold_pixelSize"]: 
                         map_idx[map_idx == seem_id] = 0
                         continue
@@ -121,8 +134,10 @@ class SeemMap_tracking(SeemMap):
                     else:
                         candidate_emb = embeddings[seem_id]
                         candidate_emb_normalized = candidate_emb / np.linalg.norm(candidate_emb)
+                        candidate_category_id = category_dict[seem_id]
                         max_id = -1
-                        max_val = self.config["threshold_semSim"]
+                        max_sem = self.config["threshold_semSim"]
+                        max_iou = self.config["threshold_geoSim"]
                         candidate_mask = (map_idx == seem_id).astype(np.uint8)
                         pixels = np.sum(candidate_mask)
 
@@ -131,16 +146,22 @@ class SeemMap_tracking(SeemMap):
                             pre_emb = pre_val["embedding"]
                             pre_emb_normalized = pre_emb / np.linalg.norm(pre_emb)
                             pre_mask = pre_val["mask"]
+                            pre_category_id = pre_val["category_id"]
                             sim_score = candidate_emb_normalized @ pre_emb_normalized.T
                             # union = np.logical_or(candidate_mask, pre_mask).astype(int)
                             intersection = np.logical_and(candidate_mask, pre_mask).astype(int)
                             iou = np.sum(intersection) / pixels # np.sum(union)
-                            if iou > self.config["threshold_geoSim"] and sim_score > max_val:
-                                max_val = sim_score
-                                max_id = pre_id
+                            if self.bool_seemID:
+                                if iou > max_iou and candidate_category_id == pre_category_id:
+                                    max_iou = iou
+                                    max_id = pre_id
+                            else:
+                                if iou > max_iou and sim_score > max_sem:
+                                    max_iou = iou
+                                    max_id = pre_id
                         if max_id != -1:
                             matching_id[seem_id] = max_id
-                            new_pre_matching_id[max_id] = {"embedding":candidate_emb, "mask": candidate_mask}
+                            new_pre_matching_id[max_id] = {"embedding":candidate_emb, "mask": candidate_mask, "category_id": candidate_category_id}
                             instance_emb = self.instance_dict[max_id]["embedding"]
                             instance_count = self.instance_dict[max_id]["count"]
                             self.instance_dict[max_id]["embedding"] = (instance_emb * instance_count + candidate_emb) / (instance_count + 1)
@@ -153,23 +174,35 @@ class SeemMap_tracking(SeemMap):
                         # step2. matching with grid instances
                         else:
                             max_semSim = self.config["threshold_semSim"]
+                            max_geoSim = self.config["threshold_geoSim"]
                             for instance_id, instance_val in self.instance_dict.items():
                                 try: instance_emb = instance_val["embedding"]
                                 except:
                                     raise ValueError(f"Instance {instance_id} does not have embedding")
                                 instance_emb_normalized = instance_emb / np.linalg.norm(instance_emb)
+                                instance_category_id = instance_val["category_id"]
                                 semSim = candidate_emb_normalized @ instance_emb_normalized.T
-                                if semSim > max_semSim:
-                                    instance_save_path = self.datamanager.managing_temp(0, temp_dir = temp_save_dir, temp_name=f"mask_{instance_id}.npy")
-                                    instance_mask = self.datamanager.managing_temp(2, instance_save_path = instance_save_path)
-                                    intersection = np.logical_and(feat_map_mask_int, instance_mask).astype(int)
-                                    geoSim = np.sum(intersection) / pixels
-                                    if geoSim > self.config["threshold_geoSim"]:
-                                        max_semSim = semSim
-                                        max_id = instance_id
+                                if self.bool_seemID:
+                                    if candidate_category_id == instance_category_id:
+                                        instance_save_path = self.datamanager.managing_temp(0, temp_dir = temp_save_dir, temp_name=f"mask_{instance_id}.npy")
+                                        instance_mask = self.datamanager.managing_temp(2, instance_save_path = instance_save_path)
+                                        intersection = np.logical_and(feat_map_mask_int, instance_mask).astype(int)
+                                        geoSim = np.sum(intersection) / pixels
+                                        if geoSim > max_geoSim:
+                                            max_geoSim = geoSim
+                                            max_id = instance_id
+                                else:
+                                    if semSim > max_semSim:
+                                        instance_save_path = self.datamanager.managing_temp(0, temp_dir = temp_save_dir, temp_name=f"mask_{instance_id}.npy")
+                                        instance_mask = self.datamanager.managing_temp(2, instance_save_path = instance_save_path)
+                                        intersection = np.logical_and(feat_map_mask_int, instance_mask).astype(int)
+                                        geoSim = np.sum(intersection) / pixels
+                                        if geoSim > max_geoSim:
+                                            max_geoSim = geoSim
+                                            max_id = instance_id
                             if max_id != -1:
                                 matching_id[seem_id] = max_id
-                                new_pre_matching_id[max_id] = {"embedding":candidate_emb, "mask": candidate_mask}
+                                new_pre_matching_id[max_id] = {"embedding":candidate_emb, "mask": candidate_mask, "category_id": candidate_category_id}
                                 instance_emb = self.instance_dict[max_id]["embedding"]
                                 instance_count = self.instance_dict[max_id]["count"]
                                 self.instance_dict[max_id]["embedding"] = (instance_emb * instance_count + candidate_emb) / (instance_count + 1)
@@ -182,9 +215,9 @@ class SeemMap_tracking(SeemMap):
                             else:
                                 new_id = new_instance_id
                                 matching_id[seem_id] = new_id
-                                self.instance_dict[new_id] = {"embedding":candidate_emb, "count":1, "frames":{self.datamanager.count:pixels}}
+                                self.instance_dict[new_id] = {"embedding":candidate_emb, "count":1, "frames":{self.datamanager.count:pixels}, "category_id":candidate_category_id}
                                 frame_mask[candidate_mask == 1] = new_id
-                                new_pre_matching_id[max_id] = {"embedding":candidate_emb, "mask": candidate_mask}
+                                new_pre_matching_id[max_id] = {"embedding":candidate_emb, "mask": candidate_mask, "category_id": candidate_category_id}
                                 instance_save_path = self.datamanager.managing_temp(0, temp_dir = temp_save_dir, temp_name=f"mask_{new_id}.npy")
                                 self.datamanager.managing_temp(1, instance_save_path=instance_save_path, instance=feat_map_mask_int)
                                 new_instance_id += 1
@@ -211,7 +244,9 @@ class SeemMap_tracking(SeemMap):
                 rgb_seem_id = map_idx[i,j]
                 if (depth[new_i, new_j] < 0.1 or depth[new_i, new_j] > 3) and rgb_seem_id != 0:
                     # print(map_idx[new_i, new_j], pc[:,new_i*depthshape[1]+new_j][2])
-                    raise Exception(f"Depth filtering is failed: {depth[new_i, new_j]}")
+                    print(self.config["max_depth"], self.config["min_depth"])
+                    print(self.bool_IQR)
+                    raise Exception(f"Depth filtering is failed: {depth[new_i, new_j]}, {rgb_seem_id}")
                 if depth[new_i, new_j] < 0.1 or depth[new_i, new_j] > 3: continue
                 pp = pc_global[:,new_i*depth.shape[1]+new_j]
                 x,y = pos2grid_id(self.config["gs"],self.config["cs"],pp[0],pp[2])
@@ -221,13 +256,25 @@ class SeemMap_tracking(SeemMap):
                     self.color_top_down[y,x] = rgb[new_i,new_j,:]
                     self.color_top_down_height[y,x] = h
 
-    def removing_noise(self, mask:NDArray, min_size:int =5) -> NDArray:
+    def denoising(self, mask:NDArray, min_size:int =5) -> NDArray:
         labeled_mask, num_features = label(mask)
-        min_size =5
+
+        largest_region_label = None
+        largest_region_size = 0
         for region_label in range(1, num_features + 1):
             region_size = np.sum(labeled_mask == region_label)
-            if region_size < min_size:
-                mask[labeled_mask == region_label] = False
+            if region_size > largest_region_size:
+                largest_region_size = region_size
+                largest_region_label = region_label
+        mask[:] = False
+        if largest_region_label is not None and largest_region_size >= min_size:
+            mask[labeled_mask == largest_region_label] = True
+        return mask
+
+        # for region_label in range(1, num_features + 1):
+        #     region_size = np.sum(labeled_mask == region_label)
+        #     if region_size < min_size:
+        #         mask[labeled_mask == region_label] = False
         return mask
     
     def postprocessing(self):
@@ -303,8 +350,8 @@ class SeemMap_tracking(SeemMap):
                     new_id = matching_dict[key]
                     if new_id not in new_grid[y,x].keys():
                         new_grid[y,x][new_id] = val
-        self.grid = new_grid
-        self.instance_dict = new_instance_dict
+        self.grid = new_grid.copy()
+        self.instance_dict = new_instance_dict.copy()
     
     def preprocessing(self):
         raise NotImplementedError
@@ -323,8 +370,8 @@ class SeemMap_tracking(SeemMap):
         background_emb = self.model.encode_prompt(["wall","floor"], task = "default")
         background_emb = background_emb.cpu().numpy()
         self.instance_dict = {}
-        self.instance_dict[0] = {"embedding":self.pano_emb[0,:], "count":0, "frames":{}}
-        self.instance_dict[1] = {"embedding":self.pano_emb[1,:], "count":0, "frames":{}}
+        self.instance_dict[0] = {"embedding":background_emb[0,:], "count":0, "frames":{}, "category_id":0}
+        self.instance_dict[1] = {"embedding":background_emb[1,:], "count":0, "frames":{}, "category_id":1}
         self.frame_mask_dict = {}
     
     def save_map(self):
