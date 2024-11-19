@@ -2,6 +2,7 @@ import os, sys
 import json
 import argparse
 import torch
+from utils.matterport3d_categories import mp3dcat
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -74,12 +75,11 @@ def parse_args():
             parser.add_argument("--no-postprocessing", action="store_false",
                                 help="Do not apply postprocessing to the SEEM feature map")
     elif args.vlm == "lseg":
-        parser.add_argument('--lseg-ckpt', type=str, default='/home/hong/VLMAPS/vlmaps_oop/lseg/ckpt/demo_e200.ckpt')
+        parser.add_argument('--lseg-ckpt', type=str, default=os.path.join(os.getcwd(),"lseg/ckpt/demo_e200.ckpt"))
         parser.add_argument('--crop-size', type=int, default=480)
         parser.add_argument('--base-size', type=int, default=520)
         parser.add_argument('--lang', type=str, default='door,chair,ground,ceiling,other')
         parser.add_argument('--clip-version', type=str, default='ViT-B/32', choices=['ViT-B/16', 'ViT-B/32', 'RN101'])
-
 
 
     if args.data_type == "habitat_sim":
@@ -119,4 +119,40 @@ def save_args(args):
     
 
 def parse_args_load_map():
-    NotImplementedError
+    raise NotImplementedError
+
+
+def parse_args_indexing_map():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu",
+                        choices=["cuda", "cpu"], help="Select device to use (Default: cuda)")
+    # parser.add_argument("--vlm", default="seem", type = str, choices=["lseg","seem"],
+    #                     help="Name of the vln model to use (Default: seem)")
+    parser.add_argument("--data-type", type=str, default="habitat_sim",
+                        choices=["habitat_sim", "rtabmap"], help="Select data type to use (Default: habitat_sim)")
+    parser.add_argument("--scene-id", type=str, default="2t7WUuJeko7_2",
+                        help="Scene name to use (Default: 2t7WUuJeko7_2)")
+    parser.add_argument("--version", type=str, default="seem",
+                        help="Version name to append to the output map name (e.g., grid_lseg_v1.npy)")
+    parser.add_argument("--visualize", action="store_true",
+                        help="Visualize the map")
+    parser.add_argument("--save-instance-map", action="store_true",
+                        help="Save the instance map")
+    parser.add_argument("--save-category-map", action="store_true",
+                        help="Save the category map")
+    parser.add_argument("--indexing-method", type=str, default="height", choices=["height","count","mode"],
+                        help="Indexing method to use (Default: height)")
+    parser.add_argument("--seem-instance-method", type=str,default="floodfill",choices=["dbscan","floodfill"],
+                        help="Instance divide method to use for SEEM (Default: floodfill)")
+    parser.add_argument("--query", nargs="+", type=str, default= mp3dcat,
+                        help="A list of items (space-separated)")
+    parser.add_argument("--threshold-semSim", type=float, default=0.99,
+                        help="Threshold of semantic similarity for SEEM feature (Default: 0.85)")
+    # data path
+    now_root = os.getcwd()
+    now_root = os.path.join(now_root, "Data")
+    parser.add_argument("--root-path", default = now_root, type=str,
+                        help="Root path to use")
+    args = parser.parse_args()
+    print(args)
+    return args

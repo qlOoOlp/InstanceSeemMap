@@ -30,7 +30,7 @@ class SeemMap(Map):
         tf_list = []
         print("Processing data...")
         pbar = tqdm(range(self.datamanager.numData))
-        while self.datamanager.count < self.datamanager.numData:
+        while self.datamanager.count < self.datamanager.numData-1:
             rgb, depth, (pos,rot) = self.datamanager.data_getter()
             rot = rot @ self.datamanager.rectification_matrix
             pos[1] += self.config["camera_height"]

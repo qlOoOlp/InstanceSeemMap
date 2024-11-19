@@ -34,6 +34,7 @@ class SeemMap_tracking(SeemMap):
             new_instance_id = 2
             pbar = tqdm(range(self.datamanager.numData))
             while self.datamanager.count < self.datamanager.numData-1: # Because count is increased when data_getter is called
+                # print("start")
                 rgb, depth, (pos,rot) = self.datamanager.data_getter()
                 rot = rot @ self.datamanager.rectification_matrix
                 pos[1] += self.config["camera_height"]
@@ -83,7 +84,7 @@ class SeemMap_tracking(SeemMap):
                 w_ratio = depth.shape[1] / map_idx.shape[1]
 
 
-
+                # print("depth process")
                 # depth vaule filtering
                 if not self.bool_upsample and (h_ratio != 4 or w_ratio != 4):
                     raise ValueError(f"Ratio between depth and SEEM Feature map is not 4: h_ratio = {h_ratio}, w_ratio = {w_ratio}")
@@ -91,9 +92,11 @@ class SeemMap_tracking(SeemMap):
                 else: map_idx = depth_filtering(map_idx, pc, depth_shape, h_ratio, w_ratio, self.config["max_depth"], self.config["min_depth"])
 
                 # rgb map processing
+                # print("submap process")
                 if self.bool_submap: self.submap_processing(map_idx, depth, rgb, pc_global, h_ratio, w_ratio)
 
                 # Projecting SEEM feature map to the grid map
+                # print("projection process")
                 feat_dict = {}
                 for seem_id in np.unique(map_idx):
                     if seem_id == 0 :  continue
@@ -116,7 +119,10 @@ class SeemMap_tracking(SeemMap):
                     feat_map[feat_map_bool == False] = 0
                     feat_dict[seem_id] = feat_map
 
+
+
                 # main processing
+                # print("process start")
                 matching_id = {}
                 new_pre_matching_id = {}
                 for seem_id in np.unique(map_idx):
@@ -142,6 +148,7 @@ class SeemMap_tracking(SeemMap):
                         pixels = np.sum(candidate_mask)
 
                         # step1. matching with previous frame
+                        # print("step1")
                         for pre_id, pre_val in pre_matching_id.items():
                             pre_emb = pre_val["embedding"]
                             pre_emb_normalized = pre_emb / np.linalg.norm(pre_emb)
@@ -167,62 +174,63 @@ class SeemMap_tracking(SeemMap):
                             self.instance_dict[max_id]["embedding"] = (instance_emb * instance_count + candidate_emb) / (instance_count + 1)
                             self.instance_dict[max_id]["count"] = instance_count + 1
                             frame_mask[candidate_mask == 1] = max_id
-                            instance_save_path = self.datamanager.managing_temp(0, temp_dir = temp_save_dir, temp_name=f"mask_{max_id}.npy")
-                            instance_mask = self.datamanager.managing_temp(2, instance_save_path = instance_save_path)
-                            self.datamanager.managing_temp(1, instance_save_path=instance_save_path, instance=np.logical_or(instance_mask, feat_map_mask_int).astype(int))
+                            # instance_save_path = self.datamanager.managing_temp(0, temp_dir = temp_save_dir, temp_name=f"mask_{max_id}.npy")
+                            # instance_mask = self.datamanager.managing_temp(2, instance_save_path = instance_save_path)
+                            # self.datamanager.managing_temp(1, instance_save_path=instance_save_path, instance=np.logical_or(instance_mask, feat_map_mask_int).astype(int))
                         
                         # step2. matching with grid instances
                         else:
-                            max_semSim = self.config["threshold_semSim"]
-                            max_geoSim = self.config["threshold_geoSim"]
-                            for instance_id, instance_val in self.instance_dict.items():
-                                try: instance_emb = instance_val["embedding"]
-                                except:
-                                    raise ValueError(f"Instance {instance_id} does not have embedding")
-                                instance_emb_normalized = instance_emb / np.linalg.norm(instance_emb)
-                                instance_category_id = instance_val["category_id"]
-                                semSim = candidate_emb_normalized @ instance_emb_normalized.T
-                                if self.bool_seemID:
-                                    if candidate_category_id == instance_category_id:
-                                        instance_save_path = self.datamanager.managing_temp(0, temp_dir = temp_save_dir, temp_name=f"mask_{instance_id}.npy")
-                                        instance_mask = self.datamanager.managing_temp(2, instance_save_path = instance_save_path)
-                                        intersection = np.logical_and(feat_map_mask_int, instance_mask).astype(int)
-                                        geoSim = np.sum(intersection) / pixels
-                                        if geoSim > max_geoSim:
-                                            max_geoSim = geoSim
-                                            max_id = instance_id
-                                else:
-                                    if semSim > max_semSim:
-                                        instance_save_path = self.datamanager.managing_temp(0, temp_dir = temp_save_dir, temp_name=f"mask_{instance_id}.npy")
-                                        instance_mask = self.datamanager.managing_temp(2, instance_save_path = instance_save_path)
-                                        intersection = np.logical_and(feat_map_mask_int, instance_mask).astype(int)
-                                        geoSim = np.sum(intersection) / pixels
-                                        if geoSim > max_geoSim:
-                                            max_geoSim = geoSim
-                                            max_id = instance_id
-                            if max_id != -1:
-                                matching_id[seem_id] = max_id
-                                new_pre_matching_id[max_id] = {"embedding":candidate_emb, "mask": candidate_mask, "category_id": candidate_category_id}
-                                instance_emb = self.instance_dict[max_id]["embedding"]
-                                instance_count = self.instance_dict[max_id]["count"]
-                                self.instance_dict[max_id]["embedding"] = (instance_emb * instance_count + candidate_emb) / (instance_count + 1)
-                                self.instance_dict[max_id]["count"] = instance_count + 1
-                                self.instance_dict[max_id]["frames"][self.datamanager.count]=pixels
-                                frame_mask[candidate_mask == 1] = max_id
-                                instance_save_path = self.datamanager.managing_temp(0, temp_dir = temp_save_dir, temp_name=f"mask_{max_id}.npy")
-                                instance_mask = self.datamanager.managing_temp(2, instance_save_path = instance_save_path)
-                                self.datamanager.managing_temp(1, instance_save_path=instance_save_path, instance=np.logical_or(instance_mask, feat_map_mask_int).astype(int))
-                            else:
-                                new_id = new_instance_id
-                                matching_id[seem_id] = new_id
-                                self.instance_dict[new_id] = {"embedding":candidate_emb, "count":1, "frames":{self.datamanager.count:pixels}, "category_id":candidate_category_id}
-                                frame_mask[candidate_mask == 1] = new_id
-                                new_pre_matching_id[max_id] = {"embedding":candidate_emb, "mask": candidate_mask, "category_id": candidate_category_id}
-                                instance_save_path = self.datamanager.managing_temp(0, temp_dir = temp_save_dir, temp_name=f"mask_{new_id}.npy")
-                                self.datamanager.managing_temp(1, instance_save_path=instance_save_path, instance=feat_map_mask_int)
-                                new_instance_id += 1
-                                max_id = new_id
-
+                            # print("step2")
+                            # max_semSim = self.config["threshold_semSim"]
+                            # max_geoSim = self.config["threshold_geoSim"]
+                            # for instance_id, instance_val in self.instance_dict.items():
+                            #     try: instance_emb = instance_val["embedding"]
+                            #     except:
+                            #         raise ValueError(f"Instance {instance_id} does not have embedding")
+                            #     instance_emb_normalized = instance_emb / np.linalg.norm(instance_emb)
+                            #     instance_category_id = instance_val["category_id"]
+                            #     semSim = candidate_emb_normalized @ instance_emb_normalized.T
+                            #     if self.bool_seemID:
+                            #         if candidate_category_id == instance_category_id:
+                            #             instance_save_path = self.datamanager.managing_temp(0, temp_dir = temp_save_dir, temp_name=f"mask_{instance_id}.npy")
+                            #             instance_mask = self.datamanager.managing_temp(2, instance_save_path = instance_save_path)
+                            #             intersection = np.logical_and(feat_map_mask_int, instance_mask).astype(int)
+                            #             geoSim = np.sum(intersection) / pixels
+                            #             if geoSim > max_geoSim:
+                            #                 max_geoSim = geoSim
+                            #                 max_id = instance_id
+                            #     else:
+                            #         if semSim > max_semSim:
+                            #             instance_save_path = self.datamanager.managing_temp(0, temp_dir = temp_save_dir, temp_name=f"mask_{instance_id}.npy")
+                            #             instance_mask = self.datamanager.managing_temp(2, instance_save_path = instance_save_path)
+                            #             intersection = np.logical_and(feat_map_mask_int, instance_mask).astype(int)
+                            #             geoSim = np.sum(intersection) / pixels
+                            #             if geoSim > max_geoSim:
+                            #                 max_geoSim = geoSim
+                            #                 max_id = instance_id
+                            # if max_id != -1:
+                            #     matching_id[seem_id] = max_id
+                            #     new_pre_matching_id[max_id] = {"embedding":candidate_emb, "mask": candidate_mask, "category_id": candidate_category_id}
+                            #     instance_emb = self.instance_dict[max_id]["embedding"]
+                            #     instance_count = self.instance_dict[max_id]["count"]
+                            #     self.instance_dict[max_id]["embedding"] = (instance_emb * instance_count + candidate_emb) / (instance_count + 1)
+                            #     self.instance_dict[max_id]["count"] = instance_count + 1
+                            #     self.instance_dict[max_id]["frames"][self.datamanager.count]=pixels
+                            #     frame_mask[candidate_mask == 1] = max_id
+                            #     instance_save_path = self.datamanager.managing_temp(0, temp_dir = temp_save_dir, temp_name=f"mask_{max_id}.npy")
+                            #     instance_mask = self.datamanager.managing_temp(2, instance_save_path = instance_save_path)
+                            #     self.datamanager.managing_temp(1, instance_save_path=instance_save_path, instance=np.logical_or(instance_mask, feat_map_mask_int).astype(int))
+                            # else:
+                            new_id = new_instance_id
+                            matching_id[seem_id] = new_id
+                            self.instance_dict[new_id] = {"embedding":candidate_emb, "count":1, "frames":{self.datamanager.count:pixels}, "category_id":candidate_category_id}
+                            frame_mask[candidate_mask == 1] = new_id
+                            new_pre_matching_id[max_id] = {"embedding":candidate_emb, "mask": candidate_mask, "category_id": candidate_category_id}
+                            # instance_save_path = self.datamanager.managing_temp(0, temp_dir = temp_save_dir, temp_name=f"mask_{new_id}.npy")
+                            # self.datamanager.managing_temp(1, instance_save_path=instance_save_path, instance=feat_map_mask_int)
+                            new_instance_id += 1
+                            max_id = new_id
+                    # print("grid saving")
                     for coord in np.argwhere(feat_map_mask_int != 0):
                         i,j = coord
                         self.grid[i,j].setdefault(max_id, [0, feat_map_mask[i,j],1])[2] +=1
@@ -257,6 +265,7 @@ class SeemMap_tracking(SeemMap):
                     self.color_top_down_height[y,x] = h
 
     def denoising(self, mask:NDArray, min_size:int =5) -> NDArray:
+        # type1. biggest one return / type2. removing small noise
         labeled_mask, num_features = label(mask)
 
         largest_region_label = None
@@ -276,82 +285,177 @@ class SeemMap_tracking(SeemMap):
         #     if region_size < min_size:
         #         mask[labeled_mask == region_label] = False
         return mask
-    
+
+
+
     def postprocessing(self):
-        grid_map = {}
-        for y in range(self.config["gs"]):
-            for x in range(self.config["gs"]):
-                for key in self.grid[y,x].keys():
-                    if key not in grid_map:
-                        grid_map[key] = set()
-                    grid_map[key].add((y,x))
-        
-        new_instance_dict = {}
-        matching_dict = {}
-        new_grid = np.empty((self.config["gs"],self.config["gs"]),dtype=object)
-        count0=0
-        count1=0
-        for i in range(self.config["gs"]):
-            for j in range(self.config["gs"]):
-                new_grid[i,j] = {}
-                if 0 in self.grid[i,j].keys():count0+=1
-                if 1 in self.grid[i,j].keys():count1+=1
-        print(f"Size of wall and floor: {count0}, {count1}")
-        pbar2 = tqdm(total=len(self.instance_dict.items()), leave=True)
-        for instance_id, instance_val in self.instance_dict.items():
-            tf = True
-            try: instance_y, instance_x = zip(*grid_map[instance_id])
-            except: 
+        while True:
+            grid_map = {}
+            for y in range(self.config["gs"]):
+                for x in range(self.config["gs"]):
+                    for key in self.grid[y,x].keys():
+                        if key not in grid_map:
+                            grid_map[key] = set()
+                        grid_map[key].add((y,x))
+
+            new_instance_dict = {}
+            matching_dict = {}
+            new_grid = np.empty((self.config["gs"], self.config["gs"]), dtype=object)
+            count0 = 0
+            count1 = 0
+            for i in range(self.config["gs"]):
+                for j in range(self.config["gs"]):
+                    new_grid[i, j] = {}
+                    if 0 in self.grid[i, j].keys(): count0 += 1
+                    if 1 in self.grid[i, j].keys(): count1 += 1
+            print(f"Size of wall and floor: {count0}, {count1}")
+
+            pbar2 = tqdm(total=len(self.instance_dict.items()), leave=True)
+            updated = False  # 변경 여부를 추적하기 위한 플래그
+            for instance_id, instance_val in self.instance_dict.items():
+                tf = True
+                try:
+                    instance_y, instance_x = zip(*grid_map[instance_id])
+                except:
+                    pbar2.update(1)
+                    continue
+                instance_y = np.array(instance_y)
+                instance_x = np.array(instance_x)
+                instance_mask = np.zeros((self.config["gs"], self.config["gs"]), dtype=np.uint8)
+                instance_mask[instance_y, instance_x] = 1
+                if np.sum(instance_mask) < 100:
+                    pbar2.update(1)
+                    continue
+                instance_emb = instance_val["embedding"]
+                for new_id, new_val in new_instance_dict.items():
+                    if new_id in [0, 1]: continue
+                    new_mask = new_val["mask"]
+                    new_emb = new_val["embedding"]
+                    new_count = new_val["count"]
+                    intersection = np.logical_and(instance_mask, new_mask).astype(int)
+                    iou1 = np.sum(intersection) / np.sum(instance_mask)
+                    iou2 = np.sum(intersection) / np.sum(new_mask)
+                    instance_emb_normalized = instance_emb / np.linalg.norm(instance_emb)
+                    new_emb_normalized = new_emb / np.linalg.norm(new_emb)
+                    semSim = instance_emb_normalized @ new_emb_normalized.T
+                    if min(iou1,iou2) > self.config["threshold_geoSim"] and semSim > self.config["threshold_semSim"]:
+                        new_instance_dict[new_id]["embedding"] = (new_emb * new_count + instance_emb) / (new_count + 1)
+                        new_instance_dict[new_id]["count"] = new_count + 1
+                        new_instance_dict[new_id]["mask"] = np.logical_or(new_mask, instance_mask).astype(np.uint8)
+                        new_instance_dict[new_id]["frames"] = dict(Counter(new_instance_dict[new_id]["frames"]) + Counter(instance_val["frames"]))
+                        tf = False
+                        matching_dict[instance_id] = new_id
+                        for frame_key in instance_val["frames"].keys():
+                            frame_mask = self.frame_mask_dict[frame_key]
+                            self.frame_mask_dict[frame_key][frame_mask == instance_id] = new_id
+                        updated = True  # 변경이 발생했음을 표시
+                        break
+                if tf:
+                    new_instance_dict[instance_id] = {"mask": instance_mask, "embedding": instance_emb, "count": 1, "frames": instance_val["frames"]}
+                    matching_dict[instance_id] = instance_id
                 pbar2.update(1)
-                continue
-            instance_y = np.array(instance_y)
-            instance_x = np.array(instance_x)
-            instance_mask = np.zeros((self.config["gs"],self.config["gs"]),dtype=np.uint8)
-            instance_mask[instance_y, instance_x] = 1
 
-            instance_emb = instance_val["embedding"]
-            for new_id, new_val in new_instance_dict.items():
-                if new_id in [0,1]: continue
-                new_mask = new_val["mask"]
-                new_emb = new_val["embedding"]
-                new_count = new_val["count"]
-                intersection = np.logical_and(instance_mask, new_mask).astype(int)
-                iou1 = np.sum(intersection) / np.sum(instance_mask)
-                instance_emb_normalized = instance_emb / np.linalg.norm(instance_emb)
-                new_emb_normalized = new_emb / np.linalg.norm(new_emb)
-                semSim = instance_emb_normalized @ new_emb_normalized.T
-                if iou1 > self.config["threshold_geoSim"] and semSim > self.config["threshold_semSim"]:
+            for instance_id in new_instance_dict.keys():
+                frames = new_instance_dict[instance_id]["frames"]
+                new_instance_dict[instance_id]["frames"] = dict(sorted(frames.items(), key=lambda x: x[1], reverse=True))
+            print(new_instance_dict.keys())
 
-                    new_instance_dict[new_id]["embedding"] = (new_emb * new_count + instance_emb) / (new_count + 1)
-                    new_instance_dict[new_id]["count"] = new_count + 1
-                    new_instance_dict[new_id]["mask"] = np.logical_or(new_mask, instance_mask).astype(np.uint8)
-                    new_instance_dict[new_id]["frames"] = dict(Counter(new_instance_dict[new_id]["frames"]) + Counter(instance_val["frames"]))
-                    tf = False
-                    matching_dict[instance_id] = new_id
-                    for frame_key in instance_val["frames"].keys():
-                        frame_mask = self.frame_mask_dict[frame_key]
-                        self.frame_mask_dict[frame_key][frame_mask == instance_id] = new_id
-                    break
-            if tf:
-                new_instance_dict[instance_id] = {"mask":instance_mask, "embedding":instance_emb, "count":1, "frames":instance_val["frames"]}
-                matching_dict[instance_id] = instance_id
-            pbar2.update(1)
-        for instance_id in new_instance_dict.keys():
-            frames = new_instance_dict[instance_id]["frames"]
-            new_instance_dict[instance_id]["frames"] = dict(sorted(frames.items(), key=lambda x:x[1], reverse=True))
-        print(new_instance_dict.keys())
-        for y in range(self.config["gs"]):
-            for x in range(self.config["gs"]):
-                for key, val in self.grid[y,x].items():
-                    if key in [1,2]:
-                        new_grid[y,x][key] = val
-                        continue
-                    if key not in matching_dict.keys(): continue
-                    new_id = matching_dict[key]
-                    if new_id not in new_grid[y,x].keys():
-                        new_grid[y,x][new_id] = val
-        self.grid = new_grid.copy()
-        self.instance_dict = new_instance_dict.copy()
+            for y in range(self.config["gs"]):
+                for x in range(self.config["gs"]):
+                    for key, val in self.grid[y, x].items():
+                        if key in [1, 2]:
+                            new_grid[y, x][key] = val
+                            continue
+                        if key not in matching_dict.keys(): continue
+                        new_id = matching_dict[key]
+                        if new_id not in new_grid[y, x].keys():
+                            new_grid[y, x][new_id] = val
+            self.grid = new_grid.copy()
+            self.instance_dict = new_instance_dict.copy()
+
+            if not updated:
+                break  # 변경이 없으면 루프 종료
+
+
+
+
+    # def postprocessing(self):
+    #     grid_map = {}
+    #     for y in range(self.config["gs"]):
+    #         for x in range(self.config["gs"]):
+    #             for key in self.grid[y,x].keys():
+    #                 if key not in grid_map:
+    #                     grid_map[key] = set()
+    #                 grid_map[key].add((y,x))
+        
+    #     new_instance_dict = {}
+    #     matching_dict = {}
+    #     new_grid = np.empty((self.config["gs"],self.config["gs"]),dtype=object)
+    #     count0=0
+    #     count1=0
+    #     for i in range(self.config["gs"]):
+    #         for j in range(self.config["gs"]):
+    #             new_grid[i,j] = {}
+    #             if 0 in self.grid[i,j].keys():count0+=1
+    #             if 1 in self.grid[i,j].keys():count1+=1
+    #     print(f"Size of wall and floor: {count0}, {count1}")
+    #     pbar2 = tqdm(total=len(self.instance_dict.items()), leave=True)
+    #     for instance_id, instance_val in self.instance_dict.items():
+    #         tf = True
+    #         try: instance_y, instance_x = zip(*grid_map[instance_id])
+    #         except: 
+    #             pbar2.update(1)
+    #             continue
+    #         instance_y = np.array(instance_y)
+    #         instance_x = np.array(instance_x)
+    #         instance_mask = np.zeros((self.config["gs"],self.config["gs"]),dtype=np.uint8)
+    #         instance_mask[instance_y, instance_x] = 1
+    #         if np.sum(instance_mask) < 100:
+    #             pbar2.update(1)
+    #             continue
+    #         instance_emb = instance_val["embedding"]
+    #         for new_id, new_val in new_instance_dict.items():
+    #             if new_id in [0,1]: continue
+    #             new_mask = new_val["mask"]
+    #             new_emb = new_val["embedding"]
+    #             new_count = new_val["count"]
+    #             intersection = np.logical_and(instance_mask, new_mask).astype(int)
+    #             iou1 = np.sum(intersection) / np.sum(instance_mask)
+    #             instance_emb_normalized = instance_emb / np.linalg.norm(instance_emb)
+    #             new_emb_normalized = new_emb / np.linalg.norm(new_emb)
+    #             semSim = instance_emb_normalized @ new_emb_normalized.T
+    #             if iou1 > self.config["threshold_geoSim"] and semSim > self.config["threshold_semSim"]:
+
+    #                 new_instance_dict[new_id]["embedding"] = (new_emb * new_count + instance_emb) / (new_count + 1)
+    #                 new_instance_dict[new_id]["count"] = new_count + 1
+    #                 new_instance_dict[new_id]["mask"] = np.logical_or(new_mask, instance_mask).astype(np.uint8)
+    #                 new_instance_dict[new_id]["frames"] = dict(Counter(new_instance_dict[new_id]["frames"]) + Counter(instance_val["frames"]))
+    #                 tf = False
+    #                 matching_dict[instance_id] = new_id
+    #                 for frame_key in instance_val["frames"].keys():
+    #                     frame_mask = self.frame_mask_dict[frame_key]
+    #                     self.frame_mask_dict[frame_key][frame_mask == instance_id] = new_id
+    #                 break
+    #         if tf:
+    #             new_instance_dict[instance_id] = {"mask":instance_mask, "embedding":instance_emb, "count":1, "frames":instance_val["frames"]}
+    #             matching_dict[instance_id] = instance_id
+    #         pbar2.update(1)
+    #     for instance_id in new_instance_dict.keys():
+    #         frames = new_instance_dict[instance_id]["frames"]
+    #         new_instance_dict[instance_id]["frames"] = dict(sorted(frames.items(), key=lambda x:x[1], reverse=True))
+    #     print(new_instance_dict.keys())
+    #     for y in range(self.config["gs"]):
+    #         for x in range(self.config["gs"]):
+    #             for key, val in self.grid[y,x].items():
+    #                 if key in [1,2]:
+    #                     new_grid[y,x][key] = val
+    #                     continue
+    #                 if key not in matching_dict.keys(): continue
+    #                 new_id = matching_dict[key]
+    #                 if new_id not in new_grid[y,x].keys():
+    #                     new_grid[y,x][new_id] = val
+    #     self.grid = new_grid.copy()
+    #     self.instance_dict = new_instance_dict.copy()
     
     def preprocessing(self):
         raise NotImplementedError
@@ -366,7 +470,6 @@ class SeemMap_tracking(SeemMap):
         for i in range(self.config["gs"]):
             for j in range(self.config["gs"]):
                 self.grid[i,j] = {}
-        self.background_grid = np.zeros((self.config["gs"], self.config["gs"], self.feat_dim), dtype=np.float32)
         background_emb = self.model.encode_prompt(["wall","floor"], task = "default")
         background_emb = background_emb.cpu().numpy()
         self.instance_dict = {}
@@ -381,10 +484,8 @@ class SeemMap_tracking(SeemMap):
                                     obstacles=self.obstacles,
                                     weight=self.weight,
                                     instance_dict=self.instance_dict,
-                                    frame_mask_dict=self.frame_mask_dict,
-                                    background_grid=self.background_grid)
+                                    frame_mask_dict=self.frame_mask_dict)
         else:
             self.datamanager.save_map(grid=self.grid,
                                     instance_dict=self.instance_dict,
-                                    frame_mask_dict=self.frame_mask_dict,
-                                    background_grid=self.background_grid)
+                                    frame_mask_dict=self.frame_mask_dict)

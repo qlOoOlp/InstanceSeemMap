@@ -5,6 +5,9 @@ from typing import Dict, Union, Tuple
 from numpy.typing import NDArray
 import os
 import pickle
+import json
+from omegaconf import OmegaConf, DictConfig
+
 from mapbuilder.utils.utils import rgbLoader, depthLoader, poseLoader
 # from typing import
 
@@ -47,17 +50,21 @@ class DataManager():
         self.__count = -1
         print(f"Data loaded: {self.__numData} data")
 
-    def load_map(self, **kwargs)->Dict[str, Union[dict,NDArray]]:
-        result = {}
-        for key, value in kwargs:
-            if type(value) == type({1:1}):
-                with open(value, 'rb') as f:
-                    temp = pickle.load(f)
-            else:
-                with open(value, 'rb') as f:
+    def load_map(self, *args)->Dict[str, Union[dict,NDArray]]:
+        result = []
+        for path in args:
+            try:
+                with open(path, 'rb') as f:
                     temp = np.load(f, allow_pickle=True)
-            result[key] = temp
+                result.append[temp]
+            except:
+                try:
+                    with open(path, 'rb') as f:
+                        temp = pickle.load(f)
+                    result.append[temp]
+                except: raise ValueError("Invalid map path")
         return result
+    
     
     def save_map(self, **kwargs)->None:
         for key, value in kwargs.items():
@@ -98,7 +105,6 @@ class DataManager():
             np.save(kwargs["instance_save_path"], kwargs["instance"])
         else: # type == 2, load temp
             return np.load(kwargs["instance_save_path"])
-
 
     @property
     def numData(self):
@@ -157,3 +163,63 @@ class DataManager4Real(DataManager):
     #     if value.shape != (3, 3):
     #         raise ValueError("Invalid rectification matrix")
     #     self.__rectification_matrix = value
+
+
+
+class DataLoader():
+    def __init__(self, config:DictConfig):
+        self.config = config
+        self.data_path = os.path.join(self.config["root_path"], f"{self.config['data_type']}/{self.config['scene_id']}")
+        self.__map_path = os.path.join(self.data_path, f"map/{self.config['scene_id']}_{self.config['version']}")
+        self.load_hparams()
+        self.getmap()
+        
+        
+    def load_hparams(self):
+        hparam_path = os.path.join(self.__map_path, "hparam.json")
+        with open(hparam_path, 'r') as f:
+            data = json.load(f)
+        self.hparams = OmegaConf.create(data)
+
+    def getmap(self):
+        if self.hparams["vlm"] == "seem" and self.hparams["seem_type"] != "base":
+            results = self.load_map(os.path.join(self.__map_path, f"color_top_down_{self.config['version']}.npy"),
+                                    os.path.join(self.__map_path, f"obstacles_{self.config['version']}.npy"),
+                                    os.path.join(self.__map_path, f"weight_{self.config['version']}.npy"),
+                                    os.path.join(self.__map_path, f"grid_{self.config['version']}.npy"),
+                                    os.path.join(self.__map_path, f"background_grid_{self.config['version']}.npy"),
+                                    os.path.join(self.__map_path, f"frame_mask_dict_{self.config['version']}.pkl"),
+                                    os.path.join(self.__map_path, f"instance_dict_{self.config['version']}.pkl"))
+            self.color_map, self.obstacle_map, self.weight_map, self.grid_map, self.background_grid, self.frame_mask_dict, self.instance_dict = results
+        else:
+            self.color_map, self.obstacle_map, self.weight_map, self.grid_map = self.load_map(os.path.join(self.__map_path, f"color_top_down_{self.config['version']}.npy"),
+                                                                                            os.path.join(self.__map_path, f"obstacles_{self.config['version']}.npy"),
+                                                                                            os.path.join(self.__map_path, f"weight_{self.config['version']}.npy"),
+                                                                                            os.path.join(self.__map_path, f"grid_{self.config['version']}.npy"))
+
+    def load_map(self, *args)->Dict[str, Union[dict,NDArray]]:
+        result = []
+        for path in args:
+            try:
+                with open(path, 'rb') as f:
+                    temp = np.load(f, allow_pickle=True)
+                result.append(temp)
+            except:
+                try:
+                    with open(path, 'rb') as f:
+                        temp = pickle.load(f)
+                    result.append(temp)
+                except:
+                    raise ValueError(f"Invalid map path: {path}")
+        return result
+    
+    def save_map(self, **kwargs)->None:
+        for key, value in kwargs.items():
+            if type(value) == type({1:1}):
+                map_save_path = os.path.join(self.__map_path, f"{key}_{self.config['version']}.pkl")
+                with open(map_save_path, 'wb') as f:
+                    pickle.dump(value, f)
+                continue
+            map_save_path = os.path.join(self.__map_path, f"{key}_{self.config['version']}.npy")
+            np.save(map_save_path, value, allow_pickle=True)
+    

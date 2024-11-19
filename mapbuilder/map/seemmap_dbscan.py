@@ -136,8 +136,6 @@ class SeemMap_dbscan(SeemMap):
                     candidate_emb_normalized = candidate_emb / np.linalg.norm(candidate_emb)
                     candidate_category_id = category_dict[seem_id]
                     max_id = -1
-                    max_sem = self.config["threshold_semSim"]
-                    max_iou = self.config["threshold_geoSim"]
                     candidate_mask = (map_idx == seem_id).astype(np.uint8)
                     pixels = np.sum(candidate_mask)
 
@@ -244,6 +242,7 @@ class SeemMap_dbscan(SeemMap):
                     self.color_top_down_height[y,x] = h
 
     def denoising(self, mask:NDArray, min_size:int =5) -> NDArray:
+        # type1. biggest one return / type2. removing small noise
         labeled_mask, num_features = label(mask)
 
         largest_region_label = None
@@ -353,7 +352,6 @@ class SeemMap_dbscan(SeemMap):
         for i in range(self.config["gs"]):
             for j in range(self.config["gs"]):
                 self.grid[i,j] = {}
-        self.background_grid = np.zeros((self.config["gs"], self.config["gs"], self.feat_dim), dtype=np.float32)
         background_emb = self.model.encode_prompt(["wall","floor"], task = "default")
         background_emb = background_emb.cpu().numpy()
         self.instance_dict = {}
@@ -368,10 +366,8 @@ class SeemMap_dbscan(SeemMap):
                                     obstacles=self.obstacles,
                                     weight=self.weight,
                                     instance_dict=self.instance_dict,
-                                    frame_mask_dict=self.frame_mask_dict,
-                                    background_grid=self.background_grid)
+                                    frame_mask_dict=self.frame_mask_dict)
         else:
             self.datamanager.save_map(grid=self.grid,
                                     instance_dict=self.instance_dict,
-                                    frame_mask_dict=self.frame_mask_dict,
-                                    background_grid=self.background_grid)
+                                    frame_mask_dict=self.frame_mask_dict)
