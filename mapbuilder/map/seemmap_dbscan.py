@@ -47,6 +47,10 @@ class SeemMap_dbscan(SeemMap):
             tf = init_tf_inv @ pose
 
             map_idx, map_conf, embeddings, category_dict = get_SEEM_feat(self.model, rgb, self.config["threshold_confidence"])
+            if map_idx == None:
+                pbar.update(1)
+                continue
+
 
             if self.bool_upsample:
                 upsampling_resolution = (depth.shape[0], depth.shape[1])

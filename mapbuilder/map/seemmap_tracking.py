@@ -47,6 +47,9 @@ class SeemMap_tracking(SeemMap):
                 tf = init_tf_inv @ pose
 
                 map_idx, map_conf, embeddings, category_dict = get_SEEM_feat(self.model, rgb, self.config["threshold_confidence"])
+                if map_idx is None:
+                    pbar.update(1)
+                    continue
 
                 if self.bool_upsample:
                     upsampling_resolution = (depth.shape[0], depth.shape[1])
@@ -129,6 +132,7 @@ class SeemMap_tracking(SeemMap):
                     if seem_id == 0 : continue
                     feat_map_mask = feat_dict[seem_id]
                     feat_map_mask_int = (feat_map_mask != 0).astype(int)
+                    avg_height = np.sum(feat_map_mask) / np.sum(feat_map_mask_int)
                     if np.sum(feat_map_mask_int) == 0:
                         raise ValueError("Feature map is empty")
                     if seem_id in [1,2]:
@@ -172,6 +176,7 @@ class SeemMap_tracking(SeemMap):
                             instance_emb = self.instance_dict[max_id]["embedding"]
                             instance_count = self.instance_dict[max_id]["count"]
                             self.instance_dict[max_id]["embedding"] = (instance_emb * instance_count + candidate_emb) / (instance_count + 1)
+                            self.instance_dict[max_id]["avg_height"] = (self.instance_dict[max_id]["avg_height"] * instance_count + avg_height) / (instance_count + 1)
                             self.instance_dict[max_id]["count"] = instance_count + 1
                             frame_mask[candidate_mask == 1] = max_id
                             # instance_save_path = self.datamanager.managing_temp(0, temp_dir = temp_save_dir, temp_name=f"mask_{max_id}.npy")
@@ -223,7 +228,7 @@ class SeemMap_tracking(SeemMap):
                             # else:
                             new_id = new_instance_id
                             matching_id[seem_id] = new_id
-                            self.instance_dict[new_id] = {"embedding":candidate_emb, "count":1, "frames":{self.datamanager.count:pixels}, "category_id":candidate_category_id}
+                            self.instance_dict[new_id] = {"embedding":candidate_emb, "count":1, "frames":{self.datamanager.count:pixels}, "category_id":candidate_category_id, "avg_height":avg_height}
                             frame_mask[candidate_mask == 1] = new_id
                             new_pre_matching_id[max_id] = {"embedding":candidate_emb, "mask": candidate_mask, "category_id": candidate_category_id}
                             # instance_save_path = self.datamanager.managing_temp(0, temp_dir = temp_save_dir, temp_name=f"mask_{new_id}.npy")
@@ -332,14 +337,16 @@ class SeemMap_tracking(SeemMap):
                     new_mask = new_val["mask"]
                     new_emb = new_val["embedding"]
                     new_count = new_val["count"]
+                    new_avg_height = new_val["avg_height"]
                     intersection = np.logical_and(instance_mask, new_mask).astype(int)
                     iou1 = np.sum(intersection) / np.sum(instance_mask)
                     iou2 = np.sum(intersection) / np.sum(new_mask)
                     instance_emb_normalized = instance_emb / np.linalg.norm(instance_emb)
                     new_emb_normalized = new_emb / np.linalg.norm(new_emb)
                     semSim = instance_emb_normalized @ new_emb_normalized.T
-                    if min(iou1,iou2) > self.config["threshold_geoSim"] and semSim > self.config["threshold_semSim"]:
+                    if max(iou1,iou2) > self.config["threshold_geoSim"] and semSim > self.config["threshold_semSim"]:
                         new_instance_dict[new_id]["embedding"] = (new_emb * new_count + instance_emb) / (new_count + 1)
+                        new_instance_dict[new_id]["avg_height"] = (new_avg_height * new_count + instance_val["avg_height"]) / (new_count + 1)
                         new_instance_dict[new_id]["count"] = new_count + 1
                         new_instance_dict[new_id]["mask"] = np.logical_or(new_mask, instance_mask).astype(np.uint8)
                         new_instance_dict[new_id]["frames"] = dict(Counter(new_instance_dict[new_id]["frames"]) + Counter(instance_val["frames"]))
@@ -351,7 +358,7 @@ class SeemMap_tracking(SeemMap):
                         updated = True  # 변경이 발생했음을 표시
                         break
                 if tf:
-                    new_instance_dict[instance_id] = {"mask": instance_mask, "embedding": instance_emb, "count": 1, "frames": instance_val["frames"]}
+                    new_instance_dict[instance_id] = {"mask": instance_mask, "embedding": instance_emb, "count": 1, "frames": instance_val["frames"], "avg_height": instance_val["avg_height"]}
                     matching_dict[instance_id] = instance_id
                 pbar2.update(1)
 
@@ -473,8 +480,8 @@ class SeemMap_tracking(SeemMap):
         background_emb = self.model.encode_prompt(["wall","floor"], task = "default")
         background_emb = background_emb.cpu().numpy()
         self.instance_dict = {}
-        self.instance_dict[0] = {"embedding":background_emb[0,:], "count":0, "frames":{}, "category_id":0}
-        self.instance_dict[1] = {"embedding":background_emb[1,:], "count":0, "frames":{}, "category_id":1}
+        self.instance_dict[0] = {"embedding":background_emb[0,:], "count":0, "frames":{}, "category_id":0, "avg_height":5000}
+        self.instance_dict[1] = {"embedding":background_emb[1,:], "count":0, "frames":{}, "category_id":1, "avg_height":0}
         self.frame_mask_dict = {}
     
     def save_map(self):

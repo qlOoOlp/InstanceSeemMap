@@ -5,13 +5,15 @@ from seem.xdecoder_seem.utils.constants import COCO_PANOPTIC_CLASSES
 
 def get_SEEM_feat(model : torch.nn.Module, image: NDArray, threshold_confidence = 0.5):
     features = model.encode_image([image], mode="default")[0]
+    map_idx = features["conf_idx"] 
+    map_idx_np = map_idx.cpu().numpy()
+    if len(np.unique(map_idx_np)) == 1 : return [None, None, None, None]
+    
     num_categories = len(features["category_id"])
     category_id = features["category_id"]
     map_conf = features["conf_score"]
-    map_idx = features["conf_idx"] 
     embeddings = features["caption"]
 
-    map_idx_np = map_idx.cpu().numpy()
 
     COCO_PANOPTIC_CLASSES = ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat', 'traffic light', 'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse', 'sheep', 'cow', 'elephant', 'bear', 'zebra', 'giraffe', 'backpack', 'umbrella', 'handbag', 'tie', 'suitcase', 'frisbee', 'skis', 'snowboard', 'sports ball', 'kite', 'baseball bat', 'baseball glove', 'skateboard', 'surfboard', 'tennis racket', 'bottle', 'wine glass', 'cup', 'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple', 'sandwich', 'orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 'donut', 'cake', 'chair', 'couch', 'potted plant', 'bed', 'dining table', 'toilet', 'tv', 'laptop', 'mouse', 'remote', 'keyboard', 'cell phone', 'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear', 'hair drier', 'toothbrush', 'banner', 'blanket', 'bridge', 'cardboard', 'counter', 'curtain', 'door-stuff', 'floor-wood', 'flower', 'fruit', 'gravel', 'house', 'light', 'mirror-stuff', 'net', 'pillow', 'platform', 'playingfield', 'railroad', 'river', 'road', 'roof', 'sand', 'sea', 'shelf', 'snow', 'stairs', 'tent', 'towel', 'wall-brick', 'wall-stone', 'wall-tile', 'wall-wood', 'water-other', 'window-blind', 'window-other', 'tree-merged', 'fence-merged', 'ceiling-merged', 'sky-other-merged', 'cabinet-merged', 'table-merged', 'floor-other-merged', 'pavement-merged', 'mountain-merged', 'grass-merged', 'dirt-merged', 'paper-merged', 'food-other-merged', 'building-other-merged', 'rock-merged', 'wall-other-merged', 'rug-merged']
     # pano_category = ['ceiling-merged','floor-wood','floor-other-merged','pavement-merged','platform','playingfield','road','sand','snow','dirt-merged','gravel','sky-other-merged','mountain-merged','river','sea','tree-merged','fence-merged','grass-merged','rock-merged','building-other-merged','wall-brick','wall-stone','wall-tile','wall-wood','wall-other-merged']
