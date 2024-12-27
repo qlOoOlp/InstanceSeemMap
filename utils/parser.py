@@ -31,10 +31,12 @@ def parse_args():
                         help="Depth image sampling rate (Default: 10)")
     parser.add_argument("--camera-height", type=float, default=1.5,
                         help="Camera height from the ground [m] (Default: 1.5)")
-    parser.add_argument("--max-depth", type=int, default=3,
+    parser.add_argument("--max-depth", type=float, default=3,
                         help="Maximum depth value [m] (Default: 3)")
-    parser.add_argument("--min-depth", type=int, default=0.1,
+    parser.add_argument("--min-depth", type=float, default=1,
                         help="Minimum depth value [m] (Default: 0.1)")
+    parser.add_argument("--start-frame", type=int, default=0,)
+    parser.add_argument("--end-frame", type=int, default=-1)
 
     
     # args = parser.parse_args()
@@ -43,15 +45,19 @@ def parse_args():
     args, remaining_args = parser.parse_known_args()
     parser.add_argument("--version", type=str, default=args.vlm,
                         help="Version name to append to the output map name (e.g., grid_lseg_v1.npy)")
-    
+    if args.data_type == "habitat_sim":
+        parser.add_argument("--dataset-type", type=str, default="mp3d",
+                        choices=["mp3d","replica","scannet"],help="Dataset type to use (Default: mp3d)")
     if args.vlm == "seem":
         parser.add_argument("--feat-dim", type=int, default=512,
                             help="Dimension of the SEEM feature vector (Default: 512)")
-        parser.add_argument("--threshold-confidence", type=float, default=0.5,
+        parser.add_argument("--threshold-confidence", type=float, default=0.9,
                             help="Threshold of confidence score for SEEM (Default: 0.5)")
         parser.add_argument("--seem-type", type=str, default="base",
-                            choices=["base","tracking","dbscan","floodfill"],
+                            choices=["base","obstacle","tracking","bbox","dbscan","floodfill"],
                             help="Type of SEEM to use (Default: base)")
+        parser.add_argument("--downsampling-ratio",type=float, default=1,
+                            help="Downsampling ratio for SEEM input RGB image (Default: 1)")
         args, remaining_args = parser.parse_known_args(remaining_args)
         if args.seem_type != "base":
             parser.add_argument("--no-submap", action="store_false",
@@ -70,10 +76,20 @@ def parse_args():
                                 help="Threshold of semantic similarity for SEEM feature (Default: 0.85)")
             parser.add_argument("--threshold-geoSim", type=float, default=0.4,
                                 help="Threshold of geometric similarity for SEEM feature (Default: 0.4)")
-            parser.add_argument("--threshold-bbox", type=float, default=0.4,
+            parser.add_argument("--threshold-bbox", type=float, default=0.6,
                                 help="Threshold of bbox iou (Default: 0.4)")
+            parser.add_argument("--threshold-semSim-post", type=float, default=0.8,
+                                help="Threshold of semantic similarity for SEEM feature (Default: 0.85)")
+            parser.add_argument("--threshold-geoSim-post", type=float, default=0.4,
+                                help="Threshold of geometric similarity for SEEM feature (Default: 0.4)")
+            parser.add_argument("--threshold-pixelSize-post", type=int, default=100,
+                                help="Threshold of pixel size for SEEM feature (Default: 100)")
             parser.add_argument("--no-postprocessing", action="store_false",
                                 help="Do not apply postprocessing to the SEEM feature map")
+            parser.add_argument("--max-height", type=float, default=0.5,
+                                help="Maximum height of the instance [m] (Default: 0.5)")
+            parser.add_argument("--using-size", action="store_true",
+                                help="Use size information for SEEM feature")
     elif args.vlm == "lseg":
         parser.add_argument('--lseg-ckpt', type=str, default=os.path.join(os.getcwd(),"lseg/ckpt/demo_e200.ckpt"))
         parser.add_argument('--crop-size', type=int, default=480)
@@ -99,6 +115,8 @@ def parse_args():
 
 
 def save_args(args):
+    if args.data_type == "habitat_sim" and args.dataset_type != "mp3d":
+        data_path = os.path.join(args.root_path, args.data_type, "vlmaps_dataset")
     data_path = os.path.join(args.root_path, args.data_type)
     args.img_save_dir = os.path.join(data_path, args.scene_id)
     if not os.path.exists(args.img_save_dir):

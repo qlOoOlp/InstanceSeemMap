@@ -12,8 +12,10 @@ from mapbuilder.utils.datamanager import DataManager, DataManager4Real, DataLoad
 from mapbuilder.map.lsegmap import LsegMap
 from mapbuilder.map.seemmap import SeemMap
 from mapbuilder.map.seemmap_tracking import SeemMap_tracking
+from mapbuilder.map.seemmap_bbox import SeemMap_bbox
 from mapbuilder.map.seemmap_dbscan import SeemMap_dbscan
 from mapbuilder.map.seemmap_floodfill import SeemMap_floodfill
+from mapbuilder.map.obstaclemap import ObstacleMap
 
 CLIP_FEAT_DIM_DICT = {'RN50': 1024, 'RN101': 512, 'RN50x4': 640, 'RN50x16': 768,
                     'RN50x64': 1024, 'ViT-B/32': 512, 'ViT-B/16': 512, 'ViT-L/14': 768}
@@ -27,14 +29,22 @@ class MapBuilder():
         elif self.vlm == "seem":
             if self.conf["seem_type"]=="base": self.map = SeemMap(self.conf)
             elif self.conf["seem_type"]=="tracking" : self.map = SeemMap_tracking(self.conf)
+            elif self.conf["seem_type"]=="bbox" : self.map = SeemMap_bbox(self.conf)
             elif self.conf["seem_type"]=="dbscan" : self.map = SeemMap_dbscan(self.conf)
             elif self.conf["seem_type"]=="floodfill" : self.map = SeemMap_floodfill(self.conf)
+            elif self.conf["seem_type"]=="obstacle": self.map = ObstacleMap(self.conf)
     def buildmap(self):
         print("#"*100)
         self.map.start_map()
         self.map.processing()
         self.map.save_map()
         print("="*(len("Map building done")+10),"Map building done","#"*100,sep='\n')
+
+
+
+
+
+
 
 
 class IndexMapBuilder():
@@ -206,8 +216,8 @@ class IndexMapBuilder():
                 scores_list = instance_feat @ text_feats.T
                 predicts = np.argmax(scores_list, axis=1)
                 center_weight = 3
-                category_map = np.zeros_like(grid_map_cropped, dtype=np.uint8)
-                instance_map = np.zeros_like(grid_map_cropped, dtype=np.uint8)
+                category_map = np.zeros_like(grid_map_cropped, dtype=np.uint16)
+                instance_map = np.zeros_like(grid_map_cropped, dtype=np.uint16)
                 grid_upper = np.empty((grid_map_cropped.shape[0]+1, grid_map_cropped.shape[1]+1), dtype=object)
                 for i in range(grid_map_cropped.shape[0]+1):
                     for j in range(grid_map_cropped.shape[1]+1):

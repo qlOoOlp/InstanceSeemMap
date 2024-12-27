@@ -12,7 +12,9 @@ from mapbuilder.utils.utils import rgbLoader, depthLoader, poseLoader
 # from typing import
 
 class DataManager():
-    def __init__(self, version:str, data_path:str, map_path:str):
+    def __init__(self, version:str, data_path:str, map_path:str, start_frame:int=0, end_frame:int=-1):
+        self.__start_frame = start_frame
+        self.__end_frame = end_frame
         self.__data_path = data_path
         self.__rgb_path = self.__data_path + '/rgb'
         self.__depth_path = self.__data_path + '/depth'
@@ -32,7 +34,6 @@ class DataManager():
 
         self.__rgblist = sorted(os.listdir(self.__rgb_path), key=lambda x: int(
             x.split("_")[-1].split(".")[0]))
-        self.__rgblist = [os.path.join(self.__rgb_path, x) for x in self.__rgblist]
 
         self.__depthlist = sorted(os.listdir(self.__depth_path), key=lambda x: int(
             x.split("_")[-1].split(".")[0]))
@@ -41,8 +42,15 @@ class DataManager():
         self.__poselist = sorted(os.listdir(self.__pose_path), key=lambda x: int(
             x.split("_")[-1].split(".")[0]))
         self.__poselist = [os.path.join(self.__pose_path, x) for x in self.__poselist]
-
         # check data length mismatch
+        if self.__end_frame == -1:
+            self.__rgblist = [os.path.join(self.__rgb_path, x) for x in self.__rgblist][self.__start_frame:]
+            self.__depthlist = [os.path.join(self.__depth_path, x) for x in self.__depthlist][self.__start_frame:]
+            self.__poselist = [os.path.join(self.__pose_path, x) for x in self.__poselist][self.__start_frame:]
+        else:
+            self.__rgblist = [os.path.join(self.__rgb_path, x) for x in self.__rgblist][self.__start_frame:self.__end_frame+1]
+            self.__depthlist = [os.path.join(self.__depth_path, x) for x in self.__depthlist][self.__start_frame:self.__end_frame+1]
+            self.__poselist = [os.path.join(self.__pose_path, x) for x in self.__poselist][self.__start_frame:self.__end_frame+1]
         if not len(self.__rgblist) == len(self.__depthlist) == len(self.__poselist):
             raise ValueError("Data length mismatch")
 

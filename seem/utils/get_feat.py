@@ -31,9 +31,6 @@ def get_SEEM_feat(model : torch.nn.Module, image: NDArray, threshold_confidence 
 
     map_idx_np[map_conf<threshold_confidence]=0
 
-
-
-
     # unique_values = np.unique(map_idx_np)  # 고유 인덱스 값 추출# 고유 인덱스 값의 개수에 따라 컬러맵 생성
     # colors = plt.cm.get_cmap("tab20", len(unique_values))
     # color_list = [colors(i) for i in range(len(unique_values))]
@@ -69,6 +66,8 @@ def get_SEEM_feat(model : torch.nn.Module, image: NDArray, threshold_confidence 
     #         print(id, category_id[id-1], COCO_PANOPTIC_CLASSES[category_id[id-1]])
 
     inst_id = 3
+    # print(np.unique(map_idx.cpu().numpy()))
+    # print(np.unique(map_idx_np))
     for id in np.unique(map_idx_np):
         if id ==0: continue
         if COCO_PANOPTIC_CLASSES[category_id[id-1]] in wall_category:

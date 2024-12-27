@@ -751,6 +751,8 @@ def depth2pc(depth, fov=90, intr_mat=None, min_depth=0.1, max_depth=4):#10):
     mask = pc[2, :] > min_depth
 
     mask = np.logical_and(mask, pc[2, :] < max_depth)
+    # print(pc[2,:])
+    # print(pc)
     # pc = pc[:, mask]
     return pc, mask
 
