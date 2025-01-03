@@ -1,0 +1,13 @@
+defaults:
+  - data_paths: default
+
+scene_names:
+  - UwV83HsGsw3
+data_cfg:
+  rgb: true
+  depth: true
+  semantic: true
+  resolution:
+    w: 1080
+    h: 720
+  camera_height: 1.5

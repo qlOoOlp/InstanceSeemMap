@@ -2,7 +2,7 @@ import os, sys
 import json
 import argparse
 import torch
-from utils.matterport3d_categories import mp3dcat
+from map.utils.matterport3d_categories import mp3dcat
 
 def parse_args():
     parser = argparse.ArgumentParser()
