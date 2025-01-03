@@ -1,6 +1,6 @@
 import numpy as np
-from utils.clip_utils import get_text_feats
-from seem.base_model import build_vl_model
+from map.utils.clip_utils import get_text_feats
+from map.seem.base_model import build_vl_model
  
 def get_indMap(gridMap, vlnType, lang, xymaxmin):
     if "lseg" in vlnType:
@@ -31,7 +31,7 @@ def get_indMap(gridMap, vlnType, lang, xymaxmin):
     elif "sam" in vlnType:
         NotImplementedError
     elif vlnType == "dummy_geo_dist4_reverse3_4llava_wall4":
-        from utils.mapping_utils import load_map
+        from map.utils.mapping_utils import load_map
         ggrid_map = load_map("/home/hong/VLMAPS/vlseem/Data/habitat/vlmaps_dataset/UwV83HsGsw3_1/map/gggrid_dummy_geo_dist4_reverse3_4llava_wall4.npy")
         return ggrid_map
 

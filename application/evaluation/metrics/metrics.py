@@ -1,16 +1,16 @@
 import numpy as np
-from lseg.modules.models.lseg_net import LSegEncNet
 import torch
 import os
 import pickle
-from utils.mapping_utils import load_map
 import clip
 
-from utils.lseg_utils import get_lseg_feats
-from utils.clip_utils import get_text_feats
-from utils.get_transform import get_transform
-from seem.utils.get_feat import get_SEEM_feat
-from seem.base_model import build_vl_model
+from map.utils.mapping_utils import load_map
+from map.lseg.modules.models.lseg_net import LSegEncNet
+from map.utils.lseg_utils import get_lseg_feats
+from map.utils.clip_utils import get_text_feats
+from map.utils.get_transform import get_transform
+from map.seem.utils.get_feat import get_SEEM_feat
+from map.seem.base_model import build_vl_model
 
 
 

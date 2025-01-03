@@ -1,5 +1,6 @@
-defaults:
-  - data_paths: default
+data_paths:
+  habitat_scene_dir: "nvme0n1/hong/VLMAPS/InstanceSeemMap/Data/simulation_dataset"
+  vlmaps_data_dir: "nvme0n1/hong/VLMAPS/InstanceSeemMap/Data/habitat_sim/mp3d"
 
 scene_names:
   - UwV83HsGsw3

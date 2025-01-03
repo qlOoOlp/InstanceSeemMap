@@ -13,50 +13,52 @@ from map.mapbuilder.utils.utils import rgbLoader, depthLoader, poseLoader
 
 class DataManager():
     def __init__(self, version:str, data_path:str, map_path:str, start_frame:int=0, end_frame:int=-1):
-        self.__start_frame = start_frame
-        self.__end_frame = end_frame
-        self.__data_path = data_path
-        self.__rgb_path = self.__data_path + '/rgb'
-        self.__depth_path = self.__data_path + '/depth'
-        self.__pose_path = self.__data_path + '/pose'
-        self.__map_path = map_path
-        self.__version = version
-        self._load_data()
+        self._start_frame = start_frame
+        self._end_frame = end_frame
+        self._data_path = data_path
+        self._rgb_path = self._data_path + '/rgb'
+        self._depth_path = self._data_path + '/depth'
+        self._pose_path = self._data_path + '/pose'
+        self._map_path = map_path
+        self._version = version
+        if not isinstance(self, DataManager4gt):
+            self._load_data()
         # create map path if not exists (if exists, do nothing)
-        os.makedirs(self.__map_path, exist_ok=True)
+        os.makedirs(self._map_path, exist_ok=True)
 
-        self.__rectification_matrix = np.eye(3)
-        self.__rectification_matrix[1,1] = -1
-        self.__rectification_matrix[2,2] = -1
+        self._rectification_matrix = np.eye(3)
+        self._rectification_matrix[1,1] = -1
+        self._rectification_matrix[2,2] = -1
 
     def _load_data(self)->None:
-        self.check_path(self.__data_path, self.__rgb_path, self.__depth_path, self.__pose_path)
+        self.check_path(self._data_path, self._rgb_path, self._depth_path, self._pose_path)
 
-        self.__rgblist = sorted(os.listdir(self.__rgb_path), key=lambda x: int(
+        self._rgblist = sorted(os.listdir(self._rgb_path), key=lambda x: int(
             x.split("_")[-1].split(".")[0]))
 
-        self.__depthlist = sorted(os.listdir(self.__depth_path), key=lambda x: int(
+        self._depthlist = sorted(os.listdir(self._depth_path), key=lambda x: int(
             x.split("_")[-1].split(".")[0]))
-        self.__depthlist = [os.path.join(self.__depth_path, x) for x in self.__depthlist]
+        self._depthlist = [os.path.join(self._depth_path, x) for x in self._depthlist]
 
-        self.__poselist = sorted(os.listdir(self.__pose_path), key=lambda x: int(
+        self._poselist = sorted(os.listdir(self._pose_path), key=lambda x: int(
             x.split("_")[-1].split(".")[0]))
-        self.__poselist = [os.path.join(self.__pose_path, x) for x in self.__poselist]
+        self._poselist = [os.path.join(self._pose_path, x) for x in self._poselist]
         # check data length mismatch
-        if self.__end_frame == -1:
-            self.__rgblist = [os.path.join(self.__rgb_path, x) for x in self.__rgblist][self.__start_frame:]
-            self.__depthlist = [os.path.join(self.__depth_path, x) for x in self.__depthlist][self.__start_frame:]
-            self.__poselist = [os.path.join(self.__pose_path, x) for x in self.__poselist][self.__start_frame:]
+        if self._end_frame == -1:
+            self._rgblist = [os.path.join(self._rgb_path, x) for x in self._rgblist][self._start_frame:]
+            self._depthlist = [os.path.join(self._depth_path, x) for x in self._depthlist][self._start_frame:]
+            self._poselist = [os.path.join(self._pose_path, x) for x in self._poselist][self._start_frame:]
         else:
-            self.__rgblist = [os.path.join(self.__rgb_path, x) for x in self.__rgblist][self.__start_frame:self.__end_frame+1]
-            self.__depthlist = [os.path.join(self.__depth_path, x) for x in self.__depthlist][self.__start_frame:self.__end_frame+1]
-            self.__poselist = [os.path.join(self.__pose_path, x) for x in self.__poselist][self.__start_frame:self.__end_frame+1]
-        if not len(self.__rgblist) == len(self.__depthlist) == len(self.__poselist):
+            self._rgblist = [os.path.join(self._rgb_path, x) for x in self._rgblist][self._start_frame:self._end_frame+1]
+            self._depthlist = [os.path.join(self._depth_path, x) for x in self._depthlist][self._start_frame:self._end_frame+1]
+            self._poselist = [os.path.join(self._pose_path, x) for x in self._poselist][self._start_frame:self._end_frame+1]
+        
+        if not len(self._rgblist) == len(self._depthlist) == len(self._poselist):
             raise ValueError("Data length mismatch")
 
-        self.__numData = len(self.__rgblist)
-        self.__count = -1
-        print(f"Data loaded: {self.__numData} data")
+        self._numData = len(self._rgblist)
+        self._count = -1
+        print(f"Data loaded: {self._numData} data")
 
     def load_map(self, *args)->Dict[str, Union[dict,NDArray]]:
         result = []
@@ -77,20 +79,20 @@ class DataManager():
     def save_map(self, **kwargs)->None:
         for key, value in kwargs.items():
             if type(value) == type({1:1}):
-                map_save_path = os.path.join(self.__map_path, f"{key}_{self.__version}.pkl")
+                map_save_path = os.path.join(self._map_path, f"{key}_{self._version}.pkl")
                 with open(map_save_path, 'wb') as f:
                     pickle.dump(value, f)
                 continue
-            map_save_path = os.path.join(self.__map_path, f"{key}_{self.__version}.npy")
+            map_save_path = os.path.join(self._map_path, f"{key}_{self._version}.npy")
             np.save(map_save_path, value, allow_pickle=True)
 
     def data_getter(self)->Tuple[NDArray,NDArray,Tuple[NDArray,NDArray]]:
-        self.__count += 1
-        if self.__count >= self.__numData:
+        self._count += 1
+        if self._count >= self._numData:
             raise ValueError("Data out of range")
-        rgb_dir = self.__rgblist[self.__count]
-        depth_dir = self.__depthlist[self.__count]
-        pose_dir = self.__poselist[self.__count]
+        rgb_dir = self._rgblist[self._count]
+        depth_dir = self._depthlist[self._count]
+        pose_dir = self._poselist[self._count]
         rgb = rgbLoader(rgb_dir)
         depth = depthLoader(depth_dir)
         pose = poseLoader(pose_dir)
@@ -102,8 +104,8 @@ class DataManager():
                 raise FileNotFoundError(f"Invalid path: {path}")
             
     def get_data_shape(self):
-        rgb = rgbLoader(self.__rgblist[0])
-        depth = depthLoader(self.__depthlist[0])
+        rgb = rgbLoader(self._rgblist[0])
+        depth = depthLoader(self._depthlist[0])
         return rgb.shape, depth.shape
 
     def managing_temp(self, type: int, **kwargs):
@@ -116,25 +118,20 @@ class DataManager():
 
     @property
     def numData(self):
-        return self.__numData
+        return self._numData
+
     @property
     def count(self):
-        return self.__count
+        return self._count
+
     @property
     def rectification_matrix(self):
-        return self.__rectification_matrix
-    @rectification_matrix.setter
-    def rectification_matrix(self, value:NDArray):
-        if value.shape != (3, 3):
-            raise ValueError("Invalid rectification matrix")
-        self.__rectification_matrix = value
-
-
+        return self._rectification_matrix
 
 class DataManager4Real(DataManager):
-    def __init__(self, data_path:str, map_path:str):
-        super().__init__(data_path, map_path)
-        calib_path = self.data_path + '/calibration.yaml'
+    def __init__(self, version:str, data_path:str, map_path:str, start_frame:int=0, end_frame:int=-1):
+        super().__init__(version, data_path, map_path, start_frame, end_frame)
+        calib_path = self._data_path + '/calibration.yaml'
         self.check_path(calib_path)
         with open(calib_path, 'r') as f:
             calib = yaml.safe_load(f)
@@ -149,18 +146,18 @@ class DataManager4Real(DataManager):
                 rectification_matrix = np.array(rectification_matrix).reshape(3, 3)
             except:
                 raise ValueError("Invalid rectification matrix")
-        self.__projection_matrix = projection_matrix
-        self.__rectification_matrix = rectification_matrix
+        self._projection_matrix = projection_matrix
+        self._rectification_matrix = rectification_matrix
 
     @property
     def projection_matrix(self):
-        return self.__projection_matrix
+        return self._projection_matrix
 
     @projection_matrix.setter
     def projection_matrix(self, value:NDArray):
         if value.shape != (3, 3):
             raise ValueError("Invalid projection matrix")
-        self.__projection_matrix = value
+        self._projection_matrix = value
     
     # @property
     # def rectification_matrix(self):
@@ -173,37 +170,93 @@ class DataManager4Real(DataManager):
     #     self.__rectification_matrix = value
 
 
+class DataManager4gt(DataManager):
+    def __init__(self, version:str, data_path:str, map_path:str, start_frame:int=0, end_frame:int=-1):
+        super().__init__(version, data_path, map_path, start_frame, end_frame)
+        self._semantic_path = self._data_path + '/semantic'
+        self._load_data()
+    def _load_data(self)->None:
+        self.check_path(self._data_path, self._rgb_path, self._depth_path, self._pose_path, self._semantic_path)
+
+        self._rgblist = sorted(os.listdir(self._rgb_path), key=lambda x: int(
+            x.split("_")[-1].split(".")[0]))
+
+        self._depthlist = sorted(os.listdir(self._depth_path), key=lambda x: int(
+            x.split("_")[-1].split(".")[0]))
+        self._depthlist = [os.path.join(self._depth_path, x) for x in self._depthlist]
+
+        self._poselist = sorted(os.listdir(self._pose_path), key=lambda x: int(
+            x.split("_")[-1].split(".")[0]))
+        self._poselist = [os.path.join(self._pose_path, x) for x in self._poselist]
+
+        self._semanticlist = sorted(os.listdir(self._semantic_path), key=lambda x: int(
+            x.split("_")[-1].split(".")[0]))
+        self._semanticlist = [os.path.join(self._semantic_path, x) for x in self._semanticlist]
+    
+        if self._end_frame == -1:
+            self._rgblist = [os.path.join(self._rgb_path, x) for x in self._rgblist][self._start_frame:]
+            self._depthlist = [os.path.join(self._depth_path, x) for x in self._depthlist][self._start_frame:]
+            self._poselist = [os.path.join(self._pose_path, x) for x in self._poselist][self._start_frame:]
+            self._semanticlist = [os.path.join(self._semantic_path, x) for x in self._semanticlist][self._start_frame:]
+        else:
+            self._rgblist = [os.path.join(self._rgb_path, x) for x in self._rgblist][self._start_frame:self._end_frame+1]
+            self._depthlist = [os.path.join(self._depth_path, x) for x in self._depthlist][self._start_frame:self._end_frame+1]
+            self._poselist = [os.path.join(self._pose_path, x) for x in self._poselist][self._start_frame:self._end_frame+1]
+            self._semanticlist = [os.path.join(self._semantic_path, x) for x in self._semanticlist][self._start_frame:self._end_frame+1]
+        if not len(self._rgblist) == len(self._depthlist) == len(self._poselist) == len(self._semanticlist):
+            raise ValueError("Data length mismatch")
+
+        self._numData = len(self._rgblist)
+        self._count = -1
+        print(f"Data loaded: {self._numData} data")
+
+
+        
+    def data_getter(self)->Tuple[NDArray,NDArray,Tuple[NDArray,NDArray],NDArray]:
+        self._count += 1
+        if self._count >= self._numData:
+            raise ValueError("Data out of range")
+        rgb_dir = self._rgblist[self._count]
+        depth_dir = self._depthlist[self._count]
+        pose_dir = self._poselist[self._count]
+        semantic_dir = self._semanticlist[self._count]
+        rgb = rgbLoader(rgb_dir)
+        depth = depthLoader(depth_dir)
+        pose = poseLoader(pose_dir)
+        semantic = depthLoader(semantic_dir)
+        return rgb, depth, pose, semantic
+
 
 class DataLoader():
     def __init__(self, config:DictConfig):
         self.config = config
         self.data_path = os.path.join(self.config["root_path"], f"{self.config['data_type']}/{self.config['scene_id']}")
-        self.__map_path = os.path.join(self.data_path, f"map/{self.config['scene_id']}_{self.config['version']}")
+        self._map_path = os.path.join(self.data_path, f"map/{self.config['scene_id']}_{self.config['version']}")
         self.load_hparams()
         self.getmap()
         
         
     def load_hparams(self):
-        hparam_path = os.path.join(self.__map_path, "hparam.json")
+        hparam_path = os.path.join(self._map_path, "hparam.json")
         with open(hparam_path, 'r') as f:
             data = json.load(f)
         self.hparams = OmegaConf.create(data)
 
     def getmap(self):
         if self.hparams["vlm"] == "seem" and self.hparams["seem_type"] != "base":
-            results = self.load_map(os.path.join(self.__map_path, f"color_top_down_{self.config['version']}.npy"),
-                                    os.path.join(self.__map_path, f"obstacles_{self.config['version']}.npy"),
-                                    os.path.join(self.__map_path, f"weight_{self.config['version']}.npy"),
-                                    os.path.join(self.__map_path, f"grid_{self.config['version']}.npy"),
-                                    os.path.join(self.__map_path, f"background_grid_{self.config['version']}.npy"),
-                                    os.path.join(self.__map_path, f"frame_mask_dict_{self.config['version']}.pkl"),
-                                    os.path.join(self.__map_path, f"instance_dict_{self.config['version']}.pkl"))
+            results = self.load_map(os.path.join(self._map_path, f"color_top_down_{self.config['version']}.npy"),
+                                    os.path.join(self._map_path, f"obstacles_{self.config['version']}.npy"),
+                                    os.path.join(self._map_path, f"weight_{self.config['version']}.npy"),
+                                    os.path.join(self._map_path, f"grid_{self.config['version']}.npy"),
+                                    os.path.join(self._map_path, f"background_grid_{self.config['version']}.npy"),
+                                    os.path.join(self._map_path, f"frame_mask_dict_{self.config['version']}.pkl"),
+                                    os.path.join(self._map_path, f"instance_dict_{self.config['version']}.pkl"))
             self.color_map, self.obstacle_map, self.weight_map, self.grid_map, self.background_grid, self.frame_mask_dict, self.instance_dict = results
         else:
-            self.color_map, self.obstacle_map, self.weight_map, self.grid_map = self.load_map(os.path.join(self.__map_path, f"color_top_down_{self.config['version']}.npy"),
-                                                                                            os.path.join(self.__map_path, f"obstacles_{self.config['version']}.npy"),
-                                                                                            os.path.join(self.__map_path, f"weight_{self.config['version']}.npy"),
-                                                                                            os.path.join(self.__map_path, f"grid_{self.config['version']}.npy"))
+            self.color_map, self.obstacle_map, self.weight_map, self.grid_map = self.load_map(os.path.join(self._map_path, f"color_top_down_{self.config['version']}.npy"),
+                                                                                            os.path.join(self._map_path, f"obstacles_{self.config['version']}.npy"),
+                                                                                            os.path.join(self._map_path, f"weight_{self.config['version']}.npy"),
+                                                                                            os.path.join(self._map_path, f"grid_{self.config['version']}.npy"))
 
     def load_map(self, *args)->Dict[str, Union[dict,NDArray]]:
         result = []
@@ -224,10 +277,10 @@ class DataLoader():
     def save_map(self, **kwargs)->None:
         for key, value in kwargs.items():
             if type(value) == type({1:1}):
-                map_save_path = os.path.join(self.__map_path, f"{key}_{self.config['version']}.pkl")
+                map_save_path = os.path.join(self._map_path, f"{key}_{self.config['version']}.pkl")
                 with open(map_save_path, 'wb') as f:
                     pickle.dump(value, f)
                 continue
-            map_save_path = os.path.join(self.__map_path, f"{key}_{self.config['version']}.npy")
+            map_save_path = os.path.join(self._map_path, f"{key}_{self.config['version']}.npy")
             np.save(map_save_path, value, allow_pickle=True)
     

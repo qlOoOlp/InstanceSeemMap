@@ -32,6 +32,9 @@ class LsegMap(Map):
         self.crop_size = self.config["crop_size"]
         self.base_size = self.config["base_size"]
         self.depth_sample_rate = self.config["depth_sample_rate"]
+        self.min_depth = self.config["min_depth"]
+        self.max_depth = self.config["max_depth"]
+
 
         self._setup_CLIP()
 
@@ -82,7 +85,7 @@ class LsegMap(Map):
             _, features, _ = get_lseg_feats(self.model, rgb, self.labels, self.crop_size, self.base_size, self.transform, self._MEAN, self._STD)
             # print("step3. processing pc")
             if self.data_type == "rtabmap":
-                pc, mask = depth2pc4Real(depth, self.datamanager.projection_matrix, rgb.shape[:2], min_depth=0.5, max_depth=3)
+                pc, mask = depth2pc4Real(depth, self.datamanager.projection_matrix, rgb.shape[:2], min_depth=self.min_depth, max_depth=self.max_depth)
                 shuffle_mask = np.arange(pc.shape[1])
                 np.random.shuffle(shuffle_mask)
                 shuffle_mask = shuffle_mask[::self.depth_sample_rate]
@@ -93,7 +96,7 @@ class LsegMap(Map):
                 rgb_cam_mat = get_sim_cam_mat4Real(self.datamanager.projection_matrix, rgb.shape[:2],rgb.shape[:2])
                 feat_cam_mat = get_sim_cam_mat4Real(self.datamanager.projection_matrix, rgb.shape[:2], features.shape[2:])
             else:
-                pc, mask = depth2pc(depth, max_depth=3)
+                pc, mask = depth2pc(depth, min_depth=self.min_depth, max_depth=self.max_depth)
                 # print(pc.shape)
                 shuffle_mask = np.arange(pc.shape[1])
                 np.random.shuffle(shuffle_mask)

@@ -8,12 +8,13 @@ import habitat_sim
 import numpy as np
 from PIL import Image
 
+
 def make_cfg(settings: Dict) -> habitat_sim.Configuration:
     sim_cfg = habitat_sim.SimulatorConfiguration()
     sim_cfg.gpu_device_id = 0
     sim_cfg.scene_id = settings["scene"]
     sim_cfg.enable_physics = settings["enable_physics"]
-    sim_cfg.scene_dataset_config_file = settings["scene_dataset"]
+    sim_cfg.scene_dataset_config_file = settings["scene_dataset_config_file"]
 
     sensor_spec = []
     back_rgb_sensor_spec = make_sensor_spec(
@@ -47,11 +48,6 @@ def make_cfg(settings: Dict) -> habitat_sim.Configuration:
         sensor_spec.append(depth_sensor_spec)
 
     if settings["semantic_sensor"]:
-        # semantic_sensor_spec = {"semantic_sensor": {
-        #     "sensor_type": habitat_sim.SensorType.SEMANTIC,
-        #     "resolution": [settings["height"], settings["width"]],
-        #     "position": [0.0, settings["sensor_height"], 0.0],
-        # }}
         semantic_sensor_spec = make_sensor_spec(
             "semantic_sensor",
             habitat_sim.SensorType.SEMANTIC,
@@ -118,28 +114,26 @@ def keyboard_control_fast():
     return k, action
 
 
+# def show_rgb(obs):
+#     bgr = cv2.cvtColor(obs["color_sensor"], cv2.COLOR_RGB2BGR)
+#     cv2.imshow("rgb", bgr)
+
 
 def show_rgb(obs):
     bgr = cv2.cvtColor(obs["color_sensor"], cv2.COLOR_RGB2BGR)
-    cv2.imshow("rgb", bgr)
-
-
-# def show_rgb(obs):
-#     # bgr = cv2.cvtColor(obs["color_sensor"], cv2.COLOR_RGB2BGR)
-#     print(type(obs['semantic_sensor']))
-#     print(obs['semantic_sensor'].shape)
-#     semantic_image = obs['semantic_sensor']
-#     # bgr = cv2.cvtColor(obs["semantic_sensor"], cv2.COLOR_RGB2BGR)
-#     color_mapped_image = cv2.applyColorMap(semantic_image.astype(np.uint8), cv2.COLORMAP_JET)
+    # print(type(obs['semantic_sensor']))
+    # print(obs['semantic_sensor'].shape)
+    semantic_image = obs['semantic_sensor']
+    # bgr = cv2.cvtColor(obs["semantic_sensor"], cv2.COLOR_RGB2BGR)
+    color_mapped_image = cv2.applyColorMap(semantic_image.astype(np.uint8), cv2.COLORMAP_JET)
     
-#     # 이미지 시각화
-#     cv2.imshow("semantic", color_mapped_image)
-#     # cv2.waitKey(0)
-#     # cv2.destroyAllWindows()
+    # 이미지 시각화
+    cv2.imshow("semantic", color_mapped_image)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
 
 
-    # cv2.imshow("rgb", bgr)
-
+    cv2.imshow("rgb", bgr)
 
 def save_state(root_save_dir, sim_setting, agent_state, save_count):
     save_name = sim_setting["scene"].split("/")[-1].split(".")[0] + f"_{save_count:06}.txt"
@@ -209,35 +203,28 @@ def save_obs(
                 np.save(f, obs)
 
     if sim_setting["semantic_sensor"]:
-        import pickle as pkl
         # save semantic
         if sim_setting["semantic_sensor"]:
-            save_name = f"{save_id:06}"
+            save_name = f"{save_id:06}.npy"
             save_dir = root_save_dir / "semantic"
             os.makedirs(save_dir, exist_ok=True)
             save_path = save_dir / save_name
             obs = observations["semantic_sensor"]
-            obs = cvt_obj_id_2_cls_id(obs, obj2cls) #!#!#!!#!#!#
-            with open(f"{save_path}.npy", 'wb') as f:
+            # print(obs, obs.shape)
+            obs = cvt_obj_id_2_cls_id(obs, obj2cls)
+            # print(obs, obs.shape)
+            # raise Exception("sdf")
+            with open(save_path, "wb") as f:
                 np.save(f, obs)
 
+            import json
+            semantic_data = {int(value[0]): value[1] for value in obj2cls.values()}
+            # JSON 파일로 저장
+            output_file = root_save_dir / "semantic_info.json"
 
-    # if sim_setting["semantic_sensor"]:
-    #     # Save Semantic as TXT
-    #     save_name = f"{save_id:06}.txt"
-    #     save_dir = root_save_dir / "semantic"
-    #     os.makedirs(save_dir, exist_ok=True)
-    #     save_path = save_dir / save_name
-        
-    #     obs = observations["semantic_sensor"].copy()
-    #     obs = cvt_obj_id_2_cls_id(obs, obj2cls)
-
-    #     # Save the semantic observation as a text file
-    #     np.savetxt(save_path, obs, fmt='%d')
-
-
-
-
+            # JSON 파일로 저장
+            with open(output_file, "w", encoding="utf-8") as f:
+                json.dump(semantic_data, f, indent=4, ensure_ascii=False)
 
 
 def get_obj2cls_dict(sim: habitat_sim.Simulator) -> Dict:
@@ -249,11 +236,61 @@ def get_obj2cls_dict(sim: habitat_sim.Simulator) -> Dict:
     return obj2cls
 
 
-def cvt_obj_id_2_cls_id(semantic: np.ndarray, obj2cls: Dict) -> np.ndarray:
+# def cvt_obj_id_2_cls_id(semantic: np.ndarray, obj2cls: Dict) -> np.ndarray:
+#     print(np.linalg.norm(semantic))
+#     print(obj2cls)
+#     h, w = semantic.shape
+#     semantic = semantic.flatten()
+#     u, inv = np.unique(semantic, return_inverse=True)
+#     return np.array([obj2cls[x][0] for x in u])[inv].reshape((h, w))
+
+
+
+#================================================================================================
+import json
+import numpy as np
+from typing import Dict, Tuple
+
+# # JSON 파일 경로
+# json_file_path = "your_json_file.json"
+
+# JSON 데이터를 기반으로 obj2cls 사전 생성
+def create_obj2cls_mapping(json_file_path: str) -> Dict[int, Tuple[int, str]]:
+    with open(json_file_path, 'r') as file:
+        data = json.load(file)
+    
+    # 'objects' 리스트에서 obj2cls 사전 생성
+    obj2cls = {
+        obj["id"]: (obj["class_id"], obj["class_name"])
+        for obj in data.get("objects", [])
+    }
+    return obj2cls
+
+def cvt_obj_id_2_cls_id(semantic: np.ndarray, obj2cls: Dict[int, Tuple[int, str]]) -> np.ndarray:
+    # print("Semantic Norm:", np.linalg.norm(semantic)) 
+    # print("Object to Class Mapping:", obj2cls) 
     h, w = semantic.shape
     semantic = semantic.flatten()
     u, inv = np.unique(semantic, return_inverse=True)
-    return np.array([obj2cls[x][0] for x in u])[inv].reshape((h, w))
+    # print(obj2cls)
+
+
+    try:
+        mapped_classes = np.array([obj2cls[x][0] if x in obj2cls else 0 for x in u])
+    except:
+        raise ValueError("Error in Mapping Classes")
+    # except KeyError as e:
+    #     print(f"KeyError for ID: {e}")
+    #     return semantic.reshape((h, w))
+    # print(semantic)
+    # print(mapped_classes[inv].reshape((h, w)))
+    return mapped_classes[inv].reshape((h, w))
+
+
+
+
+
+
 
 
 def set_agent_state(p: np.array, q: np.array):

@@ -1,4 +1,4 @@
-# Instance level SEEM VLMap
+# VLMap based instance level semantic mapping with SEEM
 ## Implemented Features
 - `LSeg`
 - `SEEM`

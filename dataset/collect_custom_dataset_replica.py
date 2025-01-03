@@ -4,7 +4,8 @@ import hydra
 import numpy as np
 from omegaconf import DictConfig
 import habitat_sim
-from map.utils.habitat_utils import *
+from map.utils.habitat_utils_replica import *
+
 
 @hydra.main(
     version_base=None,
@@ -52,19 +53,18 @@ def main(config: DictConfig) -> None:
             "depth_sensor": True,
             "semantic_sensor": True,
             "lidar_sensor": True,
-            "move_forward": 0.2,
-            "turn_left": 10,
-            "turn_right": 10,
+            "move_forward": 0.1,
+            "turn_left": 5,
             "width": 1080,
             "height": 720,
             "enable_physics": False,
+            "turn_right": 5,
             "seed": 42,
             "lidar_fov": 360,
             "depth_img_for_lidar_n": 20,
             "img_save_dir": scene_dir,
-            "scene_dataset" : "/nvme0n1/hong/VLMAPS/InstanceSeemMap/Data/simulation_dataset/mp3d/mp3d.scene_dataset_config.json"
+            "scene_dataset_config_file" : "/nvme0n1/hong/VLMAPS/InstanceSeemMap/Data/replica/mp3d.scene_dataset_config.json"#"/home/hong/VLMAPS/VLN/VLMAPS/vlmaps/Data/habitat/mp3d.scene_dataset_config.json"
         }
-
 
         # cfg = make_simple_cfg(sim_setting)
         cfg = make_cfg(sim_setting)
@@ -81,19 +81,25 @@ def main(config: DictConfig) -> None:
             )
         # for obj in objs:
         #     print(obj.id, obj.region.category.name(), obj.category.name(), obj.obb.center, obj.obb.sizes)
-        obj2cls = {int(obj.id.split("_")[-1]): (obj.category.index(), obj.category.name()) for obj in scene.objects}
+        # print(scene.objects)
+        # obj2cls = {int(obj.id.split("_")[-1]): (obj.category.index(), obj.category.name()) for obj in scene.objects}
+        segment_info_path = "/nvme0n1/hong/VLMAPS/InstanceSeemMap/Data/replica/room_2/habitat/info_semantic.json"
+        obj2cls = create_obj2cls_mapping(segment_info_path)
+        # obj2cls = {}
+        # for obj in scene.objects:
+        #     if obj is not None and obj.id is not 1None and obj.category is not None:
+        #         obj2cls[int(obj.id.split("_")[-1])] = (obj.category.index(), obj.category.name())
+        #     else:
+        #         print(f"Skipping object: {obj}")
         print(obj2cls)
-        with open('obj2cls.txt', 'w') as f:
-            for key, val in obj2cls.items():
-                f.write(f"{key}: {val[0]}, {val[1]}\n")
-            
         # initialize the agent
         agent = sim.initialize_agent(sim_setting["default_agent"])
 
         agent_state = habitat_sim.AgentState()
         random_pt = sim.pathfinder.get_random_navigable_point()
         random_pt = sim.pathfinder.get_random_navigable_point()
-        random_pt = sim.pathfinder.get_random_navigable_point()# random_pt = sim.pathfinder.get_random_navigable_point()
+        random_pt = sim.pathfinder.get_random_navigable_point()
+        # random_pt = sim.pathfinder.get_random_navigable_point()
         # agent_state.position = np.array([1.5, height_list[np.random.randint(0, len(height_list) - 1)], 4.0])
         agent_state.position = random_pt
         agent.set_state(agent_state)
@@ -103,20 +109,13 @@ def main(config: DictConfig) -> None:
 
         init_agent_state = agent_state
         actions_list = []
+
         obs = sim.get_sensor_observations(0)
         last_action = None
         release_count = 0
-
-
-        
         while True:
             show_rgb(obs)
             k, action = keyboard_control_fast()
-
-        
-
-
-
             if k != -1:
                 if action == "stop":
                     break
@@ -161,15 +160,7 @@ def main(config: DictConfig) -> None:
             save_obs(root_save_dir, sim_setting, obs, action_i + 1, obj2cls)
             agent_states.append(agent.get_state())
         save_states(root_save_dir, agent_states)
-        # for action_i, obs in enumerate(oo_list):
-        #     semantic = obs["semantic_sensor"]
-        #     save_name = f"{action_i+1:06}.npy"
-        #     save_dir = root_save_dir / "semantic"
-        #     os.makedirs(save_dir, exist_ok=True)
-        #     save_path = save_dir / save_name
-        #     sem = cvt_obj_id_2_cls_id(semantic, obj2cls) #!#!#!!#!#!#!
-        #     with open(save_path, "wb") as f:
-        #         np.save(f, sem)
+
 
 if __name__ == "__main__":
 

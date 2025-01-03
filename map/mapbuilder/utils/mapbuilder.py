@@ -16,6 +16,7 @@ from map.mapbuilder.map.seemmap_bbox import SeemMap_bbox
 from map.mapbuilder.map.seemmap_dbscan import SeemMap_dbscan
 from map.mapbuilder.map.seemmap_floodfill import SeemMap_floodfill
 from map.mapbuilder.map.obstaclemap import ObstacleMap
+from map.mapbuilder.map.gtmap import gtMap
 
 CLIP_FEAT_DIM_DICT = {'RN50': 1024, 'RN101': 512, 'RN50x4': 640, 'RN50x16': 768,
                     'RN50x64': 1024, 'ViT-B/32': 512, 'ViT-B/16': 512, 'ViT-L/14': 768}
@@ -24,7 +25,9 @@ class MapBuilder():
     def __init__(self, conf:DictConfig):
         self.conf = conf
         self.vlm = self.conf["vlm"]
-        if self.vlm == "lseg":
+        if self.conf["only_gt"]:
+            self.map = gtMap(self.conf)
+        elif self.vlm == "lseg":
             self.map = LsegMap(self.conf)
         elif self.vlm == "seem":
             if self.conf["seem_type"]=="base": self.map = SeemMap(self.conf)

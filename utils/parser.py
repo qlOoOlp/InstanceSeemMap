@@ -14,6 +14,8 @@ def parse_args():
                         choices=["habitat_sim", "rtabmap"], help="Select data type to use (Default: habitat_sim)")
     parser.add_argument("--scene-id", type=str, default="2t7WUuJeko7_2",
                         help="Scene name to use (Default: 2t7WUuJeko7_2)")
+    parser.add_argument("--only-gt", action = "store_true",
+                        help="Only make ground truth map")
 
     # data path
     now_root = os.getcwd()
@@ -43,7 +45,7 @@ def parse_args():
 
 
     args, remaining_args = parser.parse_known_args()
-    parser.add_argument("--version", type=str, default=args.vlm,
+    parser.add_argument("--version", type=str, default=args.vlm if not args.only_gt else "gt",
                         help="Version name to append to the output map name (e.g., grid_lseg_v1.npy)")
     if args.data_type == "habitat_sim":
         parser.add_argument("--dataset-type", type=str, default="mp3d",
@@ -115,9 +117,10 @@ def parse_args():
 
 
 def save_args(args):
-    if args.data_type == "habitat_sim" and args.dataset_type != "mp3d":
-        data_path = os.path.join(args.root_path, args.data_type, "vlmaps_dataset")
-    data_path = os.path.join(args.root_path, args.data_type)
+    if args.data_type == "habitat_sim":
+        data_path = os.path.join(args.root_path, args.data_type, args.dataset_type)
+    else:
+        data_path = os.path.join(args.root_path, args.data_type)
     args.img_save_dir = os.path.join(data_path, args.scene_id)
     if not os.path.exists(args.img_save_dir):
         FileNotFoundError(f"Invalid scene ID: {args.scene_id}")
