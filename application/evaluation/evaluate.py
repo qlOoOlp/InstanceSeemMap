@@ -5,15 +5,8 @@ from utils.utils import load_config
 from .metrics.evaluation import evaluation
 
 def append_results_to_json(output_path, data):
-    """Append results to JSON file at .output_path."""
     with open(output_path, 'w') as f:
         json.dump([data], f, indent=4)
-    # else:
-    #     with open(output_path, 'r') as f:
-    #         existing_data = json.load(f)
-    #     existing_data.append(data)
-    #     with open(output_path, 'w') as f:
-    #         json.dump(existing_data, f, indent=4)
 
 def __main__():
     config = load_config("config/evaluate.yaml")

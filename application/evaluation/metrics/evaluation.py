@@ -92,10 +92,6 @@ class evaluation():
             segmet = SegmentationMetric(index_map, gt, self.categories, ignore_list=self.ignore_index)
             top_k_auc, top_k_auc_mpacc, top_k_auc_fwmpacc, top_k_acc, top_k_mpacc, top_k_fwmpacc, k_spec_normalized, k_spec = segmet.cal_auc()
             pacc, mpacc, miou, fwmiou = segmet.cal_ori()
-            # # print(top_k_acc)
-            # print(pacc, mpacc, miou, fwmiou, top_k_auc)
-            # print(top_k_auc, top_k_auc_mpacc, top_k_auc_fwmpacc)
-            # # print(top_k_fwmpacc)
                 
             result_data.append({
                 "scene_id": scene_id,
@@ -107,22 +103,13 @@ class evaluation():
                 "top_k_auc_mpacc": float(top_k_auc_mpacc),
                 "top_k_auc_fwmpacc": float(top_k_auc_fwmpacc)
             })
+            if self.vlm == "ours":
+                result_data[-1]["num_embeddings"] = len(index_map.embeddings.keys())
             if not self.bool_save:
                 print(scene_id, pacc, mpacc, miou, fwmiou, top_k_auc, top_k_auc_mpacc, top_k_auc_fwmpacc, sep="//////")
             pbar.update(1)
         return result_data
 
-    def append_results_to_json(self, data):
-        """Append results to JSON file at self.output_path."""
-        if not os.path.exists(self.output_path):
-            with open(self.output_path, 'w') as f:
-                json.dump([data], f, indent=4)
-        else:
-            with open(self.output_path, 'r') as f:
-                existing_data = json.load(f)
-            existing_data.append(data)
-            with open(self.output_path, 'w') as f:
-                json.dump(existing_data, f, indent=4)
 
 
     def visualize_rgb(self, index_map, gt, gt_path):

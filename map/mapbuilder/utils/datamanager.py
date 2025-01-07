@@ -54,6 +54,7 @@ class DataManager():
             self._poselist = [os.path.join(self._pose_path, x) for x in self._poselist][self._start_frame:self._end_frame+1]
         
         if not len(self._rgblist) == len(self._depthlist) == len(self._poselist):
+            print(len(self._rgblist), len(self._depthlist), len(self._poselist))
             raise ValueError("Data length mismatch")
 
         self._numData = len(self._rgblist)
