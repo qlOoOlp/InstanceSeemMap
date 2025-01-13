@@ -91,11 +91,8 @@ class ObstacleMap(SeemMap):
             pbar.update(1)
         pbar.close()
 
-
     def preprocessing(self):
         raise NotImplementedError
-    
-
 
             
     def submap_processing(self, map_idx:NDArray, depth:NDArray, rgb:NDArray, pc_global:NDArray, h_ratio:float, w_ratio:float):

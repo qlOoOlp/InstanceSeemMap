@@ -22,3 +22,8 @@ def poseLoader(path):
         rot = r.as_matrix()
         return pos, rot
     
+def depthLoader2(path):
+    raise NotImplementedError
+
+def poseLoader2(path):
+    raise NotImplementedError

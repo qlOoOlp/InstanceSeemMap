@@ -10,6 +10,7 @@ def main():
     args=parse_args_indexing_map()
     config = OmegaConf.create(vars(args))
     mapbuilder=IndexMapBuilder(config)
+    mapbuilder.processing()
 
 if __name__=="__main__":
     main()

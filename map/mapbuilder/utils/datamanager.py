@@ -8,7 +8,7 @@ import pickle
 import json
 from omegaconf import OmegaConf, DictConfig
 
-from map.mapbuilder.utils.utils import rgbLoader, depthLoader, poseLoader
+from map.mapbuilder.utils.utils import rgbLoader, depthLoader, poseLoader, depthLoader2, poseLoader2
 # from typing import
 
 class DataManager():
@@ -210,8 +210,6 @@ class DataManager4gt(DataManager):
         self._numData = len(self._rgblist)
         self._count = -1
         print(f"Data loaded: {self._numData} data")
-
-
         
     def data_getter(self)->Tuple[NDArray,NDArray,Tuple[NDArray,NDArray],NDArray]:
         self._count += 1
@@ -226,16 +224,73 @@ class DataManager4gt(DataManager):
         pose = poseLoader(pose_dir)
         semantic = depthLoader(semantic_dir)
         return rgb, depth, pose, semantic
+    
+
+class DataManagerRoom(DataManager):
+    def __init__(self, version:str, data_path:str, map_path:str, scene_id:str):
+        super().__init__(version, data_path, map_path)
+        self.label_path = os.path.join(self._data_path, f'{scene_id}_single_label.txt')
+        self.check_path(self.label_path)
+        # self.__rgb_path = self.data_path + '/rgb'
+        # self.__depth_path = self.data_path + '/depth'
+        # self.check_path(self.__depth_path)
+        # self.check_path(self.__pose_path)
+        self.load_data()
+ 
+        # calib_path = self.data_path + '/calibration.yaml'
+        # self.check_path(calib_path)
+ 
+        self.rectification_matrix = np.eye(3)
+        self.rectification_matrix[1,1] = -1
+        self.rectification_matrix[2,2] = -1
+ 
+    def load_data(self)->None:
+        print(self._rgb_path)
+        self.rgblist = sorted(os.listdir(self._rgb_path))
+        self.rgblist = [os.path.join(self._rgb_path, x) for x in self.rgblist]
+ 
+        print(self._depth_path)
+        self.depthlist = sorted(os.listdir(self._depth_path))
+        self.depthlist = [os.path.join(self._depth_path, x) for x in self.depthlist]
+ 
+        print(self.pose_path)
+        self.poselist = sorted(os.listdir(self._pose_path))
+        self.poselist = [os.path.join(self._pose_path, x) for x in self.poselist]
+ 
+        print(self.label_path)
+        with open(self.label_path, "r") as label_txt:
+            self.labellist = [int(line_content.split(" ")[1]) for line_content in label_txt]
+ 
+        # check data length mismatch
+        if not len(self.rgblist) == len(self.depthlist) == len(self.poselist):
+            raise ValueError("Data length mismatch")
+        self.numData = len(self.rgblist)
+        self.count = -1
+        print(f"Data loaded: {self.numData} data")   
+ 
+    def data_getter(self)->Tuple[NDArray,NDArray,Tuple[NDArray,NDArray]]:
+        self.count += 1
+        if self.count >= self.numData:
+            raise ValueError("Data out of range")
+        rgb_dir = self.rgblist[self.count]
+        depth_dir = self.depthlist[self.count]
+        pose_dir = self.poselist[self.count]
+        rgb = rgbLoader(rgb_dir)
+        depth = depthLoader2(depth_dir)
+        pose = poseLoader2(pose_dir)
+        gt_label = self.labellist[self.count]
+        return rgb, depth, pose, gt_label, rgb_dir
+
+
 
 
 class DataLoader():
     def __init__(self, config:DictConfig):
         self.config = config
-        self.data_path = os.path.join(self.config["root_path"], f"{self.config['data_type']}/{self.config['scene_id']}")
+        self.data_path = os.path.join(self.config["root_path"], f"{self.config['data_type']}/{self.config['dataset_type']}/{self.config['scene_id']}")
         self._map_path = os.path.join(self.data_path, f"map/{self.config['scene_id']}_{self.config['version']}")
         self.load_hparams()
         self.getmap()
-        
         
     def load_hparams(self):
         hparam_path = os.path.join(self._map_path, "hparam.json")
@@ -249,10 +304,9 @@ class DataLoader():
                                     os.path.join(self._map_path, f"obstacles_{self.config['version']}.npy"),
                                     os.path.join(self._map_path, f"weight_{self.config['version']}.npy"),
                                     os.path.join(self._map_path, f"grid_{self.config['version']}.npy"),
-                                    os.path.join(self._map_path, f"background_grid_{self.config['version']}.npy"),
                                     os.path.join(self._map_path, f"frame_mask_dict_{self.config['version']}.pkl"),
                                     os.path.join(self._map_path, f"instance_dict_{self.config['version']}.pkl"))
-            self.color_map, self.obstacle_map, self.weight_map, self.grid_map, self.background_grid, self.frame_mask_dict, self.instance_dict = results
+            self.color_map, self.obstacle_map, self.weight_map, self.grid_map, self.frame_mask_dict, self.instance_dict = results
         else:
             self.color_map, self.obstacle_map, self.weight_map, self.grid_map = self.load_map(os.path.join(self._map_path, f"color_top_down_{self.config['version']}.npy"),
                                                                                             os.path.join(self._map_path, f"obstacles_{self.config['version']}.npy"),
@@ -274,7 +328,7 @@ class DataLoader():
                 except:
                     raise ValueError(f"Invalid map path: {path}")
         return result
-    
+
     def save_map(self, **kwargs)->None:
         for key, value in kwargs.items():
             if type(value) == type({1:1}):
@@ -284,4 +338,3 @@ class DataLoader():
                 continue
             map_save_path = os.path.join(self._map_path, f"{key}_{self.config['version']}.npy")
             np.save(map_save_path, value, allow_pickle=True)
-    

@@ -182,7 +182,7 @@ replica_cat = {
     98: 'rug', 
     99: 'logo', 
     100: 'bag', 
-    101: 'set-of-clothing', 
+    101: 'set-of-clothing'
     }
 
 

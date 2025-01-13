@@ -15,6 +15,7 @@ def main():
     parser.add_argument("--threshold-semSim-post", type=float, required=True, help="Threshold for semantic similarity post")
     parser.add_argument("--threshold-geoSim-post", type=float, required=True, help="Threshold for geometric similarity post")
     parser.add_argument("--threshold-pixelSize-post", type=int, required=True, help="Threshold for pixel size post")
+    parser.add_argument("--version", type=str, required=True)
     args = parser.parse_args()
 
     # Evaluation config
@@ -23,8 +24,8 @@ def main():
         "data_type": "habitat_sim",
         "dataset_type": "replica",
         "vlm": "ours",
-        "version": "b1209_ps50aft_s",
-        "scene_ids": ["frl_apartment_1_1"],
+        "version": args.version,
+        "scene_ids": ["test_room1"],
         "gt_version": "gt",
         "visualize": False,
         "bool_save": False,

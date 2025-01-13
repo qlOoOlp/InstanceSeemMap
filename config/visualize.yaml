@@ -1,0 +1,15 @@
+data_path: "/nvme0n1/hong/VLMAPS/InstanceSeemMap/Data"
+data_type: "habitat_sim"
+dataset_type : "replica" # "replica" 
+vlm: "ours" # "lseg" "seem" "ours"
+version: "b1209_ps50aft_s" #"b1209_ps50aft_s" # "lseg" "seem"
+scene_id: apartment_0_1
+
+gt_version: "gt"
+visualize:
+  - "obstacles"
+  - "rgb"
+  - "map"
+  - "gt"
+  - "instance"
+save_image: true

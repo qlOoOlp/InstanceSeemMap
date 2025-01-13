@@ -1,15 +1,15 @@
 import numpy as np
 from map.utils.mapping_utils import load_map, save_map
 import json
-from map.utils.replica_categories import replica_cat, cat2id, new_cat
+from map.utils.replica_categories import replica_cat, cat2id#, new_cat
 
-cat2id = {value:key for key, value in new_cat.items()}
+# cat2id = {value:key for key, value in replica_cat.items()}
 
 
 # path = "/nvme0n1/hong/VLMAPS/InstanceSeemMap/Data/replica/room_1/habitat/info_semantic.json"
-semantic_path = "/nvme0n1/hong/VLMAPS/InstanceSeemMap/Data/habitat_sim/vlmaps_dataset/office_2_1/map/semantic_info_gt.json"
-map_path = "/nvme0n1/hong/VLMAPS/InstanceSeemMap/Data/habitat_sim/vlmaps_dataset/office_2_1/map/grid_gt_gt.npy"
-new_map_path = "/nvme0n1/hong/VLMAPS/InstanceSeemMap/Data/habitat_sim/vlmaps_dataset/office_2_1/map/grid_gt3_gt.npy"
+semantic_path = "/nvme0n1/hong/VLMAPS/InstanceSeemMap/Data/habitat_sim/replica/test_room1/map/test_room1_gt/semantic_info_gt.json"
+map_path = "/nvme0n1/hong/VLMAPS/InstanceSeemMap/Data/habitat_sim/replica/test_room1/map/test_room1_gt/grid_gt_ori.npy"
+new_map_path = "/nvme0n1/hong/VLMAPS/InstanceSeemMap/Data/habitat_sim/replica/test_room1/map/test_room1_gt/grid_gt.npy"
 
 map = load_map(map_path)
 new_map = np.zeros_like(map)
@@ -25,7 +25,10 @@ categories = []
 
 for i in range(map.shape[0]):
     for j in range(map.shape[1]):
-        category = ori_sem[map[i,j]]
+        try:category = ori_sem[map[i,j]]
+        except:
+            print(map[i,j])
+            raise Exception("sdf")
         try:
             new_id = cat2id[category]
         except:

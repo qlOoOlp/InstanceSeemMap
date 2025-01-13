@@ -247,7 +247,7 @@ class SeemMap_bbox(SeemMap):
                     self.color_top_down[y,x] = rgb[i,j,:]
                     self.color_top_down_height[y,x] = h
                 if h > self.camera_height:continue
-                self.obstacles[y,x]=0
+                self.obstacles[y,x]=1
 
     def denoising(self, mask:NDArray, min_size:int =5) -> NDArray:
         # type1. biggest one return / type2. removing small noise
@@ -550,7 +550,7 @@ class SeemMap_bbox(SeemMap):
         if self.bool_submap:
             self.color_top_down_height = (self.camera_height + 1) * np.ones((self.gs, self.gs), dtype=np.float32)
             self.color_top_down = np.zeros((self.gs, self.gs, 3), dtype=np.uint8)
-            self.obstacles = np.ones((self.gs, self.gs), dtype=np.uint8)
+            self.obstacles = np.zeros((self.gs, self.gs), dtype=np.uint8)
             self.weight = np.zeros((self.gs, self.gs), dtype=np.float32)
         self.grid = np.empty((self.gs,self.gs),dtype=object)
         for i in range(self.gs):

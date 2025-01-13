@@ -1,1 +1,27 @@
-optimize
+{
+    "1": {
+        "params": {
+            "min_depth": 0.1,
+            "min_size_denoising_after_projection": 5,
+            "threshold_pixelSize": 5,
+            "threshold_semSim": 0.8,
+            "threshold_bbox": 0.2,
+            "threshold_semSim_post": 0.8,
+            "threshold_geoSim_post": 0.2,
+            "threshold_pixelSize_post": 5
+        },
+        "results": [
+            {
+                "scene_id": "test_room1",
+                "pacc": 0.30029523407844794,
+                "mpacc": 0.38289228462255337,
+                "miou": 0.2193012684583664,
+                "fwmiou": 0.153561569866577,
+                "top_k_auc": 0.7928819918238631,
+                "top_k_auc_mpacc": 0.7121530855386247,
+                "top_k_auc_fwmpacc": 0.7928819918238631,
+                "num_embeddings": 27
+            }
+        ]
+    }
+}

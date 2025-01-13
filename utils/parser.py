@@ -151,24 +151,26 @@ def parse_args_indexing_map():
     #                     help="Name of the vln model to use (Default: seem)")
     parser.add_argument("--data-type", type=str, default="habitat_sim",
                         choices=["habitat_sim", "rtabmap"], help="Select data type to use (Default: habitat_sim)")
+    parser.add_argument("--dataset-type", type=str,default="mp3d",
+                        choices=["mp3d","replica","scannet"],help="Dataset type to use (Default: mp3d)")
     parser.add_argument("--scene-id", type=str, default="2t7WUuJeko7_2",
                         help="Scene name to use (Default: 2t7WUuJeko7_2)")
     parser.add_argument("--version", type=str, default="seem",
                         help="Version name to append to the output map name (e.g., grid_lseg_v1.npy)")
-    parser.add_argument("--visualize", action="store_true",
-                        help="Visualize the map")
-    parser.add_argument("--save-instance-map", action="store_true",
-                        help="Save the instance map")
-    parser.add_argument("--save-category-map", action="store_true",
-                        help="Save the category map")
-    parser.add_argument("--indexing-method", type=str, default="height", choices=["height","count","mode"],
-                        help="Indexing method to use (Default: height)")
-    parser.add_argument("--seem-instance-method", type=str,default="floodfill",choices=["dbscan","floodfill"],
-                        help="Instance divide method to use for SEEM (Default: floodfill)")
-    parser.add_argument("--query", nargs="+", type=str, default= mp3dcat,
-                        help="A list of items (space-separated)")
-    parser.add_argument("--threshold-semSim", type=float, default=0.99,
-                        help="Threshold of semantic similarity for SEEM feature (Default: 0.85)")
+    # parser.add_argument("--visualize", action="store_true",
+    #                     help="Visualize the map")
+    # parser.add_argument("--save-instance-map", action="store_true",
+    #                     help="Save the instance map")
+    # parser.add_argument("--save-category-map", action="store_true",
+    #                     help="Save the category map")
+    # parser.add_argument("--indexing-method", type=str, default="height", choices=["height","count","mode"],
+    #                     help="Indexing method to use (Default: height)")
+    # parser.add_argument("--seem-instance-method", type=str,default="floodfill",choices=["dbscan","floodfill"],
+    #                     help="Instance divide method to use for SEEM (Default: floodfill)")
+    # parser.add_argument("--query", nargs="+", type=str, default= mp3dcat,
+    #                     help="A list of items (space-separated)")
+    # parser.add_argument("--threshold-semSim", type=float, default=0.99,
+    #                     help="Threshold of semantic similarity for SEEM feature (Default: 0.85)")
     # data path
     now_root = os.getcwd()
     now_root = os.path.join(now_root, "Data")
