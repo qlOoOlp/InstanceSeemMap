@@ -10,3 +10,4 @@ Data*
 *.pt
 
 dummy*
+eval_outputs/*
