@@ -65,7 +65,7 @@ class IndexMapBuilder():
         plt.figure(figsize=(8,6), dpi=120)
         plt.imshow(obstacles_pil, cmap='gray')
         plt.show()
-        self.dataloader.save_map(obstacle_map=self.wall_mask)
+        self.dataloader.save_map(wall_mask=self.wall_mask)
 
 
 

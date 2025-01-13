@@ -12948,5 +12948,30 @@
                 "num_embeddings": 24
             }
         ]
+    },
+    "519": {
+        "params": {
+            "min_depth": 0.1,
+            "min_size_denoising_after_projection": 50,
+            "threshold_pixelSize": 5,
+            "threshold_semSim": 0.85,
+            "threshold_bbox": 0.2,
+            "threshold_semSim_post": 0.85,
+            "threshold_geoSim_post": 0.6,
+            "threshold_pixelSize_post": 25
+        },
+        "results": [
+            {
+                "scene_id": "test_room1",
+                "pacc": 0.28574441164065795,
+                "mpacc": 0.25331635135129127,
+                "miou": 0.14476391673088074,
+                "fwmiou": 0.14002522064488643,
+                "top_k_auc": 0.7882805026973536,
+                "top_k_auc_mpacc": 0.6894152152290015,
+                "top_k_auc_fwmpacc": 0.7882805026973536,
+                "num_embeddings": 24
+            }
+        ]
     }
 }
