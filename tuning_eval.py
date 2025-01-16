@@ -25,7 +25,7 @@ def main():
         "dataset_type": "replica",
         "vlm": "ours",
         "version": args.version,
-        "scene_ids": ["test_room1"],
+        "scene_ids": ["apartment_0_1"],
         "gt_version": "gt",
         "visualize": False,
         "bool_save": False,

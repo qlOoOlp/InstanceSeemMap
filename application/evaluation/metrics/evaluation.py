@@ -32,7 +32,7 @@ class evaluation():
         if config["dataset_type"] == "mp3d":
             self.ignore_index = [0,2,17,39,40,-1]
         elif config["dataset_type"] == "replica":
-            self.ignore_index = [0,31,40]
+            self.ignore_index = [0,31,40,102]#[0,31,37,40,93,94,95,97]#[0,31,40]
         self.load_vlm()
         self.load_cat()
         self.set_path()
@@ -47,7 +47,7 @@ class evaluation():
         for scene_id in self.scenes:
             self.gt_paths.append(os.path.join(self.data_dir, scene_id, "map", f"{scene_id}_{self.gt_version}", f"grid_{self.gt_version}.npy"))
             self.obstacle_paths.append(os.path.join(self.data_dir, scene_id, "map", f"{scene_id}_{self.gt_version}", f"obstacles_{self.gt_version}.npy"))
-            self.color_paths.append(os.path.join(self.data_dir, scene_id, "map", f"{scene_id}_{self.version}", f"color_top_down_{self.version}.npy"))
+            self.color_paths.append(os.path.join(self.data_dir, scene_id, "map", f"{scene_id}_{self.gt_version}", f"color_top_down_{self.gt_version}.npy"))
             self.grid_paths.append(os.path.join(self.data_dir, scene_id, "map", f"{scene_id}_{self.version}", f"grid_{self.version}.npy"))
         print(f"Loaded paths for {len(self.scenes)} scenes")
 
@@ -69,18 +69,30 @@ class evaluation():
             # gt[gt==-1]=40  #^ here
             obstacles = load_map(obstacle_path)
             color = load_map(color_path)
-            if self.vlm == "ours":
-                x_indices, y_indices = np.where(obstacles == 0)
-            else:
-                x_indices, y_indices = np.where(obstacles == 0)
+            # if self.vlm == "ours":
+            x_indices, y_indices = np.where(obstacles == 0)
+            # else:
+            #     x_indices, y_indices = np.where(obstacles == 0)
             xmin = np.min(x_indices)
             xmax = np.max(x_indices)
             ymin = np.min(y_indices)
             ymax = np.max(y_indices)
+            if xmin == 0 and ymin ==0 :
+                x_indices, y_indices = np.where(obstacles == 1)
+                xmin = np.min(x_indices)
+                xmax = np.max(x_indices)
+                ymin = np.min(y_indices)
+                ymax = np.max(y_indices)
+                if xmin == 0 and ymin == 0 :
+                    raise ValueError("No valid area in the map")
             if self.bool_visualize:
                 obstacles_pil = Image.fromarray(obstacles[xmin:xmax+1, ymin:ymax+1])
                 plt.figure(figsize=(8,6), dpi=120)
                 plt.imshow(obstacles_pil, cmap="gray")
+                plt.show(block=False)
+                color_pil = Image.fromarray(color[xmin:xmax+1, ymin:ymax+1])
+                plt.figure(figsize=(8,6), dpi=120)
+                plt.imshow(color_pil, cmap="gray")
                 plt.show(block=False)
             gt = gt[xmin:xmax+1, ymin:ymax+1]
             if self.config["dataset_type"] == "mp3d":

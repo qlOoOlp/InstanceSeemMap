@@ -27,7 +27,7 @@ class SeemMap_bbox(SeemMap):
         self.bool_upsample = self.config["upsample"]
         self.bool_IQR = self.config["no_IQR"]
         self.bool_postprocess = self.config["no_postprocessing"]
-        self.bool_size = self.config["using_size"]
+        self.bool_size = self.config["not_using_size"]
 
         self.min_size_denoising_after_projection = self.config["min_size_denoising_after_projection"]
         self.threshold_pixelSize = self.config["threshold_pixelSize"]

@@ -90,7 +90,7 @@ def parse_args():
                                 help="Do not apply postprocessing to the SEEM feature map")
             parser.add_argument("--max-height", type=float, default=3,
                                 help="Maximum height of the instance [m] (Default: 0.5)")
-            parser.add_argument("--using-size", action="store_true",
+            parser.add_argument("--not-using-size", action="store_false",
                                 help="Use size information for SEEM feature")
     elif args.vlm == "lseg":
         parser.add_argument('--lseg-ckpt', type=str, default=os.path.join(os.getcwd(),"map/lseg/ckpt/demo_e200.ckpt"))
