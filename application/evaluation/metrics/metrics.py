@@ -8,6 +8,7 @@ from map.utils.mapping_utils import load_map
 from map.utils.clip_utils import get_text_feats
 from map.seem.base_model import build_vl_model
 from .utils import idxMap
+from application.evaluation.metrics.metrics_hovsg import pixel_accuracy, mean_accuracy, per_class_iou, mean_iou, frequency_weighted_iou
 
 
 class SegmentationMetric():
@@ -140,8 +141,9 @@ class SegmentationMetric():
         # print(np.unique(self.im_lab))
         self.pacc = self.calculate_pacc()
         self.mpacc, self.class_pacc_list = self.calculate_mpacc()
-        self.miou, self.fwmiou, self.class_iou_list, self.area_size = self.calculate_miou_fwmiou()
-        return self.pacc, self.mpacc, self.miou, self.fwmiou
+        self.miou, self.fwmiou = self.calculate_miou_fwmiou()
+        hovsg_results = self.calculate_hovsg()
+        return self.pacc, self.mpacc, self.miou, self.fwmiou, hovsg_results
 
 
     def calculate_pacc(self):
@@ -185,45 +187,58 @@ class SegmentationMetric():
             pixel_labeled[cls] = np.sum(im_lab == cls)
 
         return pixel_correct, pixel_labeled
-
-
-
+    
     def calculate_miou_fwmiou(self):
-        area_inter, area_union = self.intersection_union_cal(self.im_pred, self.im_lab, self.num_classes, self.ignore_list)
-        area_size = np.bincount(self.im_lab.flatten(), minlength=self.num_classes)
+        area_inter, area_union, area_size = self.intersection_union_cal(self.im_pred, self.im_lab, self.num_classes)
+        # area_size = np.bincount(self.im_lab.flatten(), minlength=self.num_classes)
 
         # 영역 크기가 0인 클래스는 계산에서 제외
-        valid_mask = area_union > 0  # 유효한 클래스만 필터링
+        valid_mask = area_size > 0  # 유효한 클래스만 필터링
         for cls in self.ignore_list:
             valid_mask[cls] = False  # 무시 리스트에 포함된 클래스도 제외
             area_size[cls] = 0      # area_size도 0으로 설정
 
-        class_iou_list = np.zeros(self.num_classes, dtype=np.float32)  # 초기화
-        class_iou_list[valid_mask] = area_inter[valid_mask] / area_union[valid_mask]  # 유효한 클래스에 대해서만 계산
+        # class_iou_list = np.zeros(self.num_classes, dtype=np.float32)  # 초기화
+        class_iou_list = area_inter[valid_mask] / area_union[valid_mask]  # 유효한 클래스에 대해서만 계산
 
+        try:
+            miou = np.mean(class_iou_list)
+        except:
+            raise ValueError("NaN must not be in class_iou_list, but it is.")
+        total_size = np.sum(area_size[valid_mask])
+        freq = area_size[valid_mask] / total_size
+        try:
+            fwmiou = np.sum(class_iou_list * freq)  # FWmIoU 계산
+        except:
+            raise ValueError("NaN must not be in class_iou_list, but it is.")
         # print(class_iou_list[valid_mask])
-        miou = np.nanmean(class_iou_list[valid_mask])  # 유효한 클래스만 포함하여 mIoU 계산
-        fwmiou = np.sum(class_iou_list[valid_mask] * area_size[valid_mask] / np.sum(area_size[valid_mask]))  # FWmIoU 계산
+        # miou = np.nanmean(class_iou_list[valid_mask])  # 유효한 클래스만 포함하여 mIoU 계산
+        # fwmiou = np.sum(class_iou_list[valid_mask] * area_size[valid_mask] / np.sum(area_size[valid_mask]))  # FWmIoU 계산
 
-        return miou, fwmiou, class_iou_list, area_size
+        return miou, fwmiou #! metrics.py line 143에서 output받는 내용도 수정해줘야됨 (원래 4개 반환했는데 2개만 받는 것으로)
 
     @staticmethod
-    def intersection_union_cal(im_pred, im_lab, num_class, ignore_list):
+    def intersection_union_cal(im_pred, im_lab, num_class):
+        # print(im_pred, im_lab)
         im_pred = np.asarray(im_pred)
         im_lab = np.asarray(im_lab)
         # Remove classes from unlabeled pixels in gt image. 
         # im_pred = im_pred * (im_lab > 0)
         # Compute area intersection:
         intersection = np.where(im_pred == im_lab, im_pred, -1)
+        # print(intersection)
         area_inter, _ = np.histogram(intersection, bins=num_class,
                                             range=(0,num_class))
         # Compute area union: 
-        area_pred, _ = np.histogram(im_pred, bins=num_class,
-                                    range=(0,num_class))
-        area_lab, _ = np.histogram(im_lab, bins=num_class,
-                                range=(0,num_class))
+        area_pred = np.bincount(im_pred.flatten(), minlength=num_class)
+        area_lab = np.bincount(im_lab.flatten(), minlength=num_class)
         area_union = area_pred + area_lab - area_inter
-        for cls in ignore_list:
-            area_inter[cls] = 0
-            area_union[cls] = 0
-        return area_inter, area_union
+        return area_inter, area_union, area_lab
+    
+    def calculate_hovsg(self):
+        pa = pixel_accuracy(self.im_pred, self.im_lab, self.ignore_list)
+        mpa = mean_accuracy(self.im_pred, self.im_lab, self.ignore_list)
+        iou = per_class_iou(self.im_pred, self.im_lab, self.ignore_list)
+        miou = mean_iou(self.im_pred, self.im_lab, self.ignore_list)
+        fwmiou = frequency_weighted_iou(self.im_pred, self.im_lab, self.ignore_list)
+        return(pa, mpa, iou, miou, fwmiou)

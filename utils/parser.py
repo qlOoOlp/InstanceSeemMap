@@ -20,7 +20,7 @@ def parse_args():
     # data path
     now_root = os.getcwd()
     now_root = os.path.join(now_root, "Data")
-    parser.add_argument("--root-path", default = now_root, type=str,
+    parser.add_argument("--root-path", default = "/nvme0n1/hong/VLMAPS/InstanceSeemMap/Data", type=str,
                         help="Root path to use")
     
 
@@ -88,12 +88,12 @@ def parse_args():
                                 help="Threshold of pixel size for SEEM feature (Default: 100)")
             parser.add_argument("--no-postprocessing", action="store_false",
                                 help="Do not apply postprocessing to the SEEM feature map")
-            parser.add_argument("--max-height", type=float, default=0.5,
+            parser.add_argument("--max-height", type=float, default=3,
                                 help="Maximum height of the instance [m] (Default: 0.5)")
             parser.add_argument("--using-size", action="store_true",
                                 help="Use size information for SEEM feature")
     elif args.vlm == "lseg":
-        parser.add_argument('--lseg-ckpt', type=str, default=os.path.join(os.getcwd(),"lseg/ckpt/demo_e200.ckpt"))
+        parser.add_argument('--lseg-ckpt', type=str, default=os.path.join(os.getcwd(),"map/lseg/ckpt/demo_e200.ckpt"))
         parser.add_argument('--crop-size', type=int, default=480)
         parser.add_argument('--base-size', type=int, default=520)
         parser.add_argument('--lang', type=str, default='door,chair,ground,ceiling,other')
@@ -174,7 +174,7 @@ def parse_args_indexing_map():
     # data path
     now_root = os.getcwd()
     now_root = os.path.join(now_root, "Data")
-    parser.add_argument("--root-path", default = now_root, type=str,
+    parser.add_argument("--root-path", default = "/nvme0n1/hong/VLMAPS/InstanceSeemMap/Data", type=str,
                         help="Root path to use")
     args = parser.parse_args()
     print(args)

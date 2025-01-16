@@ -7,9 +7,9 @@ from map.utils.replica_categories import replica_cat, cat2id#, new_cat
 
 
 # path = "/nvme0n1/hong/VLMAPS/InstanceSeemMap/Data/replica/room_1/habitat/info_semantic.json"
-semantic_path = "/nvme0n1/hong/VLMAPS/InstanceSeemMap/Data/habitat_sim/replica/test_office4/map/test_office4_gt/semantic_info_gt.json"
-map_path = "/nvme0n1/hong/VLMAPS/InstanceSeemMap/Data/habitat_sim/replica/test_office4/map/test_office4_gt/grid_gt_ori.npy"
-new_map_path = "/nvme0n1/hong/VLMAPS/InstanceSeemMap/Data/habitat_sim/replica/test_office4/map/test_office4_gt/grid_gt.npy"
+semantic_path = "/nvme0n1/hong/VLMAPS/InstanceSeemMap/Data/habitat_sim/replica/apartment_0_1/map/apartment_0_1_gt/semantic_info_gt.json"
+map_path = "/nvme0n1/hong/VLMAPS/InstanceSeemMap/Data/habitat_sim/replica/apartment_0_1/map/apartment_0_1_gt2/grid_gt2_ori.npy"
+new_map_path = "/nvme0n1/hong/VLMAPS/InstanceSeemMap/Data/habitat_sim/replica/apartment_0_1/map/apartment_0_1_gt2/grid_gt2.npy"
 
 map = load_map(map_path)
 new_map = np.zeros_like(map)
@@ -26,7 +26,7 @@ categories = []
 for i in range(map.shape[0]):
     for j in range(map.shape[1]):
         if map[i,j] == -1:
-            new_map[i,j] = 0
+            new_map[i,j] = 102
         else: new_map[i,j] = map[i,j]
         # try:category = ori_sem[map[i,j]]
         # except:

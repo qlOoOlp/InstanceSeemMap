@@ -64,22 +64,33 @@ class LsegMap(Map):
 
 
     def processing(self):
-        tf_list = []
         print("Processing data...")
+
+        # print(self.datamanager.get_init_pose())
+        b_pos, b_rot = self.datamanager.get_init_pose()
+        base_pose = np.eye(4)
+        base_pose[:3, :3] = b_rot
+        base_pose[:3, 3] = b_pos.reshape(-1)
+        # print(base_pose)
+        self.init_base_tf = base_pose
+        self.base_transform = np.array([[0,0,-1,0],[-1,0,0,0],[0,1,0,0],[0,0,0,1]])
+        # print(self.init_base_tf)
+        self.init_base_tf = self.base_transform @ self.init_base_tf @ np.linalg.inv(self.base_transform)
+        # print(self.init_base_tf)
+        self.inv_init_base_tf = np.linalg.inv(self.init_base_tf)
+        self.base2cam_tf = np.array([[1,0,0,0],[0,-1,0,1.5],[0,0,-1,0],[0,0,0,1]])
+        self.init_cam_tf = self.init_base_tf @ self.base2cam_tf
+        self.inv_init_cam_tf = np.linalg.inv(self.init_cam_tf)
         pbar = tqdm(range(self.datamanager.numData))
         while self.datamanager.count < self.datamanager.numData -1:
             # print("step1. load data")
             rgb, depth, (pos,rot) = self.datamanager.data_getter()
-            rot = rot @ self.datamanager.rectification_matrix
-            pos[1] += self.camera_height
             pose = np.eye(4)
             pose[:3, :3] = rot
             pose[:3, 3] = pos.reshape(-1)
 
-            tf_list.append(pose)
-            if len(tf_list) == 1:
-                init_tf_inv = np.linalg.inv(tf_list[0])
-            tf = init_tf_inv @ pose
+            base_pose = self.base_transform @ pose @ np.linalg.inv(self.base_transform)
+            tf = self.inv_init_base_tf @ base_pose
 
             # print("step2. get lseg features")
             _, features, _ = get_lseg_feats(self.model, rgb, self.labels, self.crop_size, self.base_size, self.transform, self._MEAN, self._STD)
@@ -105,17 +116,19 @@ class LsegMap(Map):
                 pc = pc[:, shuffle_mask]
                 # print(pc.shape)
                 pc =pc[:, mask]
-                pc_global = transform_pc(pc, tf)
+                pc_transform = tf @ self.base_transform @ self.base2cam_tf
+                pc_global = transform_pc(pc, pc_transform)
                 rgb_cam_mat = get_sim_cam_mat(rgb.shape[0],rgb.shape[1])
                 feat_cam_mat = get_sim_cam_mat(features.shape[2], features.shape[3])
             # print("step4. projection")
             # print(pc.shape, pc_global.shape)
             for i, (p, p_local) in enumerate(zip(pc_global.T, pc.T)):
-                x, y = pos2grid_id(self.gs, self.cs, p[0], p[2])
+                if p[2] < 1e-4: continue
+                x, y = pos2grid_id(self.gs, self.cs, p[0], p[1])
 
                 # ignore points projected to outside of the map and points that are 0.5 higher than the camera (could be from the ceiling)
                 if x >= self.obstacles.shape[0] or y >= self.obstacles.shape[1] or \
-                    x < 0 or y < 0 or p_local[1] < -0.5:
+                    x < 0 or y < 0 or p[2] > 2:
                     continue
 
                 # Step4. rgb embedding vector
@@ -126,9 +139,9 @@ class LsegMap(Map):
                 #     semantic_v = -1
 
                 # when the projected location is already assigned a color value before, overwrite if the current point has larger height
-                if p_local[1] < self.color_top_down_height[y,x]:
+                if p[2] > self.color_top_down_height[y,x]:
                     self.color_top_down[y,x] = rgb_v
-                    self.color_top_down_height[y,x] = p_local[1]
+                    self.color_top_down_height[y,x] = p[2]
                 px, py, pz = project_point(feat_cam_mat, p_local)
                 if not (px < 0 or py < 0 or px >= features.shape[3] or py >= features.shape[2]):
                     feat = features[0, :, py, px]
@@ -137,7 +150,7 @@ class LsegMap(Map):
                     self.weight[y, x] += 1
 
                 # build an obstacle map ignoring points on the floor (0 means occupied, 1 means free)
-                if p_local[1] > self.camera_height:
+                if p[2] < 1e-4: #self.camera_height:
                     continue
                 self.obstacles[y,x]=1
             pbar.update(1)
@@ -153,7 +166,7 @@ class LsegMap(Map):
         raise NotImplementedError
     
     def _init_map(self):
-        self.color_top_down_height = (self.camera_height + 1) * np.ones((self.gs, self.gs), dtype=np.float32)
+        self.color_top_down_height = np.zeros((self.gs, self.gs), dtype=np.float32)#(self.camera_height + 1) * np.ones((self.gs, self.gs), dtype=np.float32)
         self.color_top_down = np.zeros((self.gs, self.gs, 3), dtype=np.uint8)
         self.grid = np.zeros((self.gs, self.gs, self.feat_dim), dtype=np.float32)
         self.obstacles = np.zeros((self.gs, self.gs), dtype=np.uint8)

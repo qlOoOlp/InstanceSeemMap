@@ -83,6 +83,8 @@ class evaluation():
                 plt.imshow(obstacles_pil, cmap="gray")
                 plt.show(block=False)
             gt = gt[xmin:xmax+1, ymin:ymax+1]
+            if self.config["dataset_type"] == "mp3d":
+                gt[gt==-1] = len(mp3dcat)-1
             grid = load_map(grid_path)[xmin:xmax+1, ymin:ymax+1]
             
             index_map = idxMap(self.vlm, self.model, self.categories, grid, self.version, grid_path)
@@ -91,7 +93,7 @@ class evaluation():
                 self.visualize_rgb(index_map, gt, gt_path)
             segmet = SegmentationMetric(index_map, gt, self.categories, ignore_list=self.ignore_index)
             top_k_auc, top_k_auc_mpacc, top_k_auc_fwmpacc, top_k_acc, top_k_mpacc, top_k_fwmpacc, k_spec_normalized, k_spec = segmet.cal_auc()
-            pacc, mpacc, miou, fwmiou = segmet.cal_ori()
+            pacc, mpacc, miou, fwmiou, hovsg_results = segmet.cal_ori()
                 
             result_data.append({
                 "scene_id": scene_id,
@@ -101,12 +103,17 @@ class evaluation():
                 "fwmiou": float(fwmiou),
                 "top_k_auc": float(top_k_auc),
                 "top_k_auc_mpacc": float(top_k_auc_mpacc),
-                "top_k_auc_fwmpacc": float(top_k_auc_fwmpacc)
+                "top_k_auc_fwmpacc": float(top_k_auc_fwmpacc),
+                "hovsg_pacc": float(hovsg_results[0]),
+                "hovsg_mpacc": float(hovsg_results[1]),
+                "hovsg_miou": float(hovsg_results[3]),
+                "hovsg_fwmiou": float(hovsg_results[4])
             })
             if self.vlm == "ours":
                 result_data[-1]["num_embeddings"] = len(index_map.embeddings.keys())
             if not self.bool_save:
                 print(scene_id, pacc, mpacc, miou, fwmiou, top_k_auc, top_k_auc_mpacc, top_k_auc_fwmpacc, sep="//////")
+                print(hovsg_results[0], hovsg_results[1], hovsg_results[3], hovsg_results[4], sep="//////")
             pbar.update(1)
         return result_data
 

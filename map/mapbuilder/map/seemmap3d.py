@@ -102,7 +102,6 @@ class SeemMap(Map):
                 rgb_cam_mat = get_sim_cam_mat(rgb.shape[0], rgb.shape[1])
                 feat_cam_mat = get_sim_cam_mat(map_idx.shape[0], map_idx.shape[1])
             for i, (p, p_local) in enumerate(zip(pc_global.T, pc.T)):
-                if p[2] < 1e-4: continue
                 x,y = pos2grid_id(self.gs, self.cs, p[0], p[1])
                 if x>= self.obstacles.shape[0] or y>= self.obstacles.shape[1] or x<0 or y<0 or p[2] > 2: continue
                 rgb_px, rgb_py, rgb_pz = project_point(rgb_cam_mat, p_local)

@@ -25,22 +25,30 @@ class gtMap(Map):
         self.max_depth = self.config["max_depth"]
 
     def processing(self):
-        tf_list = []
         print("Processing data...")
+        b_pos, b_rot = self.datamanager.get_init_pose()
+        base_pose = np.eye(4)
+        base_pose[:3, :3] = b_rot
+        base_pose[:3, 3] = b_pos.reshape(-1)
+        # print(base_pose)
+        self.init_base_tf = base_pose
+        self.base_transform = np.array([[0,0,-1,0],[-1,0,0,0],[0,1,0,0],[0,0,0,1]])
+        # print(self.init_base_tf)
+        self.init_base_tf = self.base_transform @ self.init_base_tf @ np.linalg.inv(self.base_transform)
+        # print(self.init_base_tf)
+        self.inv_init_base_tf = np.linalg.inv(self.init_base_tf)
+        self.base2cam_tf = np.array([[1,0,0,0],[0,-1,0,1.5],[0,0,-1,0],[0,0,0,1]])
+        self.init_cam_tf = self.init_base_tf @ self.base2cam_tf
+        self.inv_init_cam_tf = np.linalg.inv(self.init_cam_tf)
         pbar = tqdm(range(self.datamanager.numData))
         while self.datamanager.count < self.datamanager.numData-1:
             rgb, depth, (pos,rot), semantic = self.datamanager.data_getter()
-            rot = rot @ self.datamanager.rectification_matrix
-            pos[1] += self.camera_height
             pose = np.eye(4)
             pose[:3, :3] = rot
             pose[:3, 3] = pos.reshape(-1)
 
-            tf_list.append(pose)
-            if len(tf_list) == 1:
-                init_tf_inv = np.linalg.inv(tf_list[0])
-            tf = init_tf_inv @ pose
-
+            base_pose = self.base_transform @ pose @ np.linalg.inv(self.base_transform)
+            tf = self.inv_init_base_tf @ base_pose
             pc, mask = depth2pc(depth, min_depth=self.min_depth, max_depth=self.max_depth)
             shuffle_mask = np.arange(pc.shape[1])
             np.random.shuffle(shuffle_mask)
@@ -49,24 +57,25 @@ class gtMap(Map):
             pc = pc[:, shuffle_mask]
             # print(pc.shape)
             pc =pc[:, mask]
-            pc_global = transform_pc(pc, tf)
+            pc_transform = tf @ self.base_transform @ self.base2cam_tf
+            pc_global = transform_pc(pc, pc_transform)
             rgb_cam_mat = get_sim_cam_mat(rgb.shape[0],rgb.shape[1])
-
             for i, (p, p_local) in enumerate(zip(pc_global.T, pc.T)):
-                x, y = pos2grid_id(self.gs, self.cs, p[0], p[2])
+                # if p_local[2] == 0: continue
+                x, y = pos2grid_id(self.gs, self.cs, p[0], p[1])
                 if x >= self.obstacles.shape[0] or y >= self.obstacles.shape[1] or \
-                    x < 0 or y < 0 or p_local[1] < -0.5:
+                    x < 0 or y < 0 or p[2] > 2: #2
                     continue
                 rgb_px, rgb_py, rgb_pz = project_point(rgb_cam_mat, p_local)
                 rgb_v = rgb[rgb_py, rgb_px, :]
-                semantic_v = semantic[rgb_py, rgb_px] 
+                semantic_v = semantic[rgb_py, rgb_px]
                 if semantic_v %1 !=0:
                     raise ValueError("semantic value is not integer")
-                if p_local[1] < self.color_top_down_height[y,x]:
+                if p[2] > self.color_top_down_height[y,x]:
                     self.color_top_down[y,x] = rgb_v
-                    self.color_top_down_height[y,x] = p_local[1]
+                    self.color_top_down_height[y,x] = p[2]
                     self.gt[y,x] = semantic_v
-                if p_local[1] > self.camera_height:
+                if p[2] < 1e-4:#self.camera_height:
                     continue
                 self.obstacles[y,x] = 1
             pbar.update(1)
@@ -81,7 +90,7 @@ class gtMap(Map):
         raise NotImplementedError
     
     def _init_map(self):
-        self.color_top_down_height = (self.camera_height + 1) * np.ones((self.gs, self.gs), dtype=np.float32)
+        self.color_top_down_height = np.zeros((self.gs, self.gs), dtype=np.float32) #(self.camera_height + 1) * np.ones((self.gs, self.gs), dtype=np.float32)
         self.color_top_down = np.zeros((self.gs, self.gs, 3), dtype=np.uint8)
         self.gt = np.zeros((self.gs, self.gs), dtype=int)
         self.obstacles = np.zeros((self.gs, self.gs), dtype=np.uint8)

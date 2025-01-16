@@ -109,6 +109,9 @@ class DataManager():
         depth = depthLoader(self._depthlist[0])
         return rgb.shape, depth.shape
 
+    def get_init_pose(self):
+        return poseLoader(self._poselist[0])
+
     def managing_temp(self, type: int, **kwargs):
         if type == 0: # set temp path
             return os.path.join(kwargs["temp_dir"], kwargs["temp_name"])
