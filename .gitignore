@@ -9,4 +9,5 @@ Data*
 *.ckpt
 *.pt
 dummy*
-eval_outputs*
+eval_outputs/*
+eval_outputs
