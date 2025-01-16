@@ -58,7 +58,7 @@ class IndexMapBuilder():
     def processing(self):
         self.wall_mask = np.zeros((self.dataloader.grid_map.shape[0],self.dataloader.grid_map.shape[1]), dtype=bool)
         for i in range(self.dataloader.grid_map.shape[0]):
-            for j in range(self.dataloader.grid_map.shape[1]):
+            for j in range(self.dataloader.grid_map.shape[1]): 
                 if 1 in self.dataloader.grid_map[i,j]:
                     self.wall_mask[i,j] = 1
         obstacles_pil = Image.fromarray(self.wall_mask[self.xmin:self.xmax+1, self.ymin:self.ymax+1])

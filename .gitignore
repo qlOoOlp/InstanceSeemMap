@@ -8,5 +8,5 @@ Data*
 # Ignore checkpoints
 *.ckpt
 *.pt
-
 dummy*
+eval_outputs*

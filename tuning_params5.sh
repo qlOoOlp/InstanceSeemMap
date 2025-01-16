@@ -5,7 +5,7 @@ script_path="application.buildmap.buildmap"
 evaluation_script="tuning_eval"
 
 # JSON 파일 경로
-output_file="/nvme0n1/hong/VLMAPS/InstanceSeemMap/eval_outputs/results2.json"
+output_file="/nvme0n1/hong/VLMAPS/InstanceSeemMap/eval_outputs/results5.json"
 
 # JSON 파일 초기화
 if [ ! -f "$output_file" ]; then
@@ -17,12 +17,12 @@ min_depth=(0.1) #(0.1 1)
 min_size_denoising_after_projection=(5)
 threshold_pixelSize=(5) # 100
 
-threshold_semSim=(0.85) # 0.95
-threshold_bbox=(0.4 0.6) # 0.8
-threshold_semSim_post=(0.8) # 0.95
-threshold_geoSim_post=(0.4 0.6) # 0.8
+threshold_semSim=(0.9) # 0.95
+threshold_bbox=(0.2) # 0.8
+threshold_semSim_post=(0.9) # 0.95
+threshold_geoSim_post=(0.2 0.4 0.6) # 0.8
 # threshold_pixelSize_post=(5 25 50 100)
-psp=25
+psp=5
 # 총 조합 수 계산
 total_combinations=$((${#min_depth[@]} * ${#min_size_denoising_after_projection[@]} * ${#threshold_pixelSize[@]} * ${#threshold_semSim[@]} * ${#threshold_bbox[@]} * ${#threshold_semSim_post[@]} * ${#threshold_geoSim_post[@]}))
 echo "Total combinations: $total_combinations"
@@ -51,7 +51,7 @@ for sdp in "${min_size_denoising_after_projection[@]}"; do
                             key="$combination_index"
 
                             # Python 명령 실행
-                            python -m "$script_path" --version "optimize2" --scene-id "apartment_0_1" --vlm "seem" --seem-type "bbox" --dataset-type "replica" --using-size --min-depth "$d" --min-size-denoising-after-projection "$sdp" --threshold-pixelSize "$ps" --threshold-semSim "$ss" --threshold-bbox "$tb" --threshold-semSim-post "$ssp" --threshold-geoSim-post "$gsp" --threshold-pixelSize-post "$psp"
+                            python -m "$script_path" --version "optimize5" --scene-id "apartment_0_1" --vlm "seem" --seem-type "bbox" --dataset-type "replica" --using-size --min-depth "$d" --min-size-denoising-after-projection "$sdp" --threshold-pixelSize "$ps" --threshold-semSim "$ss" --threshold-bbox "$tb" --threshold-semSim-post "$ssp" --threshold-geoSim-post "$gsp" --threshold-pixelSize-post "$psp"
 
                             # Python 평가 실행
                             python -m "$evaluation_script" \
@@ -65,7 +65,7 @@ for sdp in "${min_size_denoising_after_projection[@]}"; do
                                 --threshold-semSim-post "$ssp" \
                                 --threshold-geoSim-post "$gsp" \
                                 --threshold-pixelSize-post "$psp" \
-                                --version "optimize2" \
+                                --version "optimize5" \
 
                             # 진행률 업데이트
                             progress_bar "$total_combinations" "$combination_index"

@@ -32,7 +32,7 @@ class evaluation():
         if config["dataset_type"] == "mp3d":
             self.ignore_index = [0,2,17,39,40,-1]
         elif config["dataset_type"] == "replica":
-            self.ignore_index = [0,31,40]
+            self.ignore_index = [0,31,40,102]#[0,31,37,40,93,94,95,97]#[0,31,40]
         self.load_vlm()
         self.load_cat()
         self.set_path()
@@ -47,7 +47,7 @@ class evaluation():
         for scene_id in self.scenes:
             self.gt_paths.append(os.path.join(self.data_dir, scene_id, "map", f"{scene_id}_{self.gt_version}", f"grid_{self.gt_version}.npy"))
             self.obstacle_paths.append(os.path.join(self.data_dir, scene_id, "map", f"{scene_id}_{self.gt_version}", f"obstacles_{self.gt_version}.npy"))
-            self.color_paths.append(os.path.join(self.data_dir, scene_id, "map", f"{scene_id}_{self.version}", f"color_top_down_{self.version}.npy"))
+            self.color_paths.append(os.path.join(self.data_dir, scene_id, "map", f"{scene_id}_{self.gt_version}", f"color_top_down_{self.gt_version}.npy"))
             self.grid_paths.append(os.path.join(self.data_dir, scene_id, "map", f"{scene_id}_{self.version}", f"grid_{self.version}.npy"))
         print(f"Loaded paths for {len(self.scenes)} scenes")
 
@@ -69,20 +69,34 @@ class evaluation():
             # gt[gt==-1]=40  #^ here
             obstacles = load_map(obstacle_path)
             color = load_map(color_path)
-            if self.vlm == "ours":
-                x_indices, y_indices = np.where(obstacles == 0)
-            else:
-                x_indices, y_indices = np.where(obstacles == 0)
+            # if self.vlm == "ours":
+            x_indices, y_indices = np.where(obstacles == 0)
+            # else:
+            #     x_indices, y_indices = np.where(obstacles == 0)
             xmin = np.min(x_indices)
             xmax = np.max(x_indices)
             ymin = np.min(y_indices)
             ymax = np.max(y_indices)
+            if xmin == 0 and ymin ==0 :
+                x_indices, y_indices = np.where(obstacles == 1)
+                xmin = np.min(x_indices)
+                xmax = np.max(x_indices)
+                ymin = np.min(y_indices)
+                ymax = np.max(y_indices)
+                if xmin == 0 and ymin == 0 :
+                    raise ValueError("No valid area in the map")
             if self.bool_visualize:
                 obstacles_pil = Image.fromarray(obstacles[xmin:xmax+1, ymin:ymax+1])
                 plt.figure(figsize=(8,6), dpi=120)
                 plt.imshow(obstacles_pil, cmap="gray")
                 plt.show(block=False)
+                color_pil = Image.fromarray(color[xmin:xmax+1, ymin:ymax+1])
+                plt.figure(figsize=(8,6), dpi=120)
+                plt.imshow(color_pil, cmap="gray")
+                plt.show(block=False)
             gt = gt[xmin:xmax+1, ymin:ymax+1]
+            if self.config["dataset_type"] == "mp3d":
+                gt[gt==-1] = len(mp3dcat)-1
             grid = load_map(grid_path)[xmin:xmax+1, ymin:ymax+1]
             
             index_map = idxMap(self.vlm, self.model, self.categories, grid, self.version, grid_path)
@@ -91,7 +105,7 @@ class evaluation():
                 self.visualize_rgb(index_map, gt, gt_path)
             segmet = SegmentationMetric(index_map, gt, self.categories, ignore_list=self.ignore_index)
             top_k_auc, top_k_auc_mpacc, top_k_auc_fwmpacc, top_k_acc, top_k_mpacc, top_k_fwmpacc, k_spec_normalized, k_spec = segmet.cal_auc()
-            pacc, mpacc, miou, fwmiou = segmet.cal_ori()
+            pacc, mpacc, miou, fwmiou, hovsg_results = segmet.cal_ori()
                 
             result_data.append({
                 "scene_id": scene_id,
@@ -101,12 +115,17 @@ class evaluation():
                 "fwmiou": float(fwmiou),
                 "top_k_auc": float(top_k_auc),
                 "top_k_auc_mpacc": float(top_k_auc_mpacc),
-                "top_k_auc_fwmpacc": float(top_k_auc_fwmpacc)
+                "top_k_auc_fwmpacc": float(top_k_auc_fwmpacc),
+                "hovsg_pacc": float(hovsg_results[0]),
+                "hovsg_mpacc": float(hovsg_results[1]),
+                "hovsg_miou": float(hovsg_results[3]),
+                "hovsg_fwmiou": float(hovsg_results[4])
             })
             if self.vlm == "ours":
                 result_data[-1]["num_embeddings"] = len(index_map.embeddings.keys())
             if not self.bool_save:
                 print(scene_id, pacc, mpacc, miou, fwmiou, top_k_auc, top_k_auc_mpacc, top_k_auc_fwmpacc, sep="//////")
+                print(hovsg_results[0], hovsg_results[1], hovsg_results[3], hovsg_results[4], sep="//////")
             pbar.update(1)
         return result_data
 

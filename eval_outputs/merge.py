@@ -17,7 +17,8 @@ for idx in range(len(files)):
         score = (vals["pacc"]+2*vals["mpacc"]+2*vals["miou"]+2*vals["fwmiou"])/7
         merged_data[new_key] = [data[key]["params"], vals, score, vals["num_embeddings"]]
 
-return_data = sorted(merged_data, key=lambda x: x[2], reverse=True)
+return_data = sorted(merged_data, key=lambda x: merged_data[x][2], reverse=True)
+# print(return_data)
     
 csv_data = []
 
