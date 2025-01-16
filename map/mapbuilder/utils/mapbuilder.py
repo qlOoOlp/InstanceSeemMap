@@ -13,6 +13,7 @@ from map.mapbuilder.map.lsegmap import LsegMap
 from map.mapbuilder.map.seemmap import SeemMap
 from map.mapbuilder.map.seemmap_tracking import SeemMap_tracking
 from map.mapbuilder.map.seemmap_bbox import SeemMap_bbox
+from map.mapbuilder.map.seemmap_bbox_roomseg import SeemMap_roomseg
 from map.mapbuilder.map.seemmap_dbscan import SeemMap_dbscan
 from map.mapbuilder.map.seemmap_floodfill import SeemMap_floodfill
 from map.mapbuilder.map.obstaclemap import ObstacleMap
@@ -38,6 +39,7 @@ class MapBuilder():
             elif self.conf["seem_type"]=="dbscan" : self.map = SeemMap_dbscan(self.conf)
             elif self.conf["seem_type"]=="floodfill" : self.map = SeemMap_floodfill(self.conf)
             elif self.conf["seem_type"]=="obstacle": self.map = ObstacleMap(self.conf)
+            elif self.conf["seem_type"]=="room_seg": self.map = SeemMap_roomseg(self.conf)
     def buildmap(self):
         print("#"*100)
         self.map.start_map()

@@ -1,0 +1,30 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python Debugger: Current File",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "mp3d_room_class",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}${pathSeparator}application${pathSeparator}buildmap${pathSeparator}buildmap.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--dataset-type", "mp3d",
+                "--seem-type", "room_seg",
+                "--root-path", "/nvme0n1/eunae/hong/InstanceSeemMap_clip/Data/v1/scans",
+                "--scene-id", "2t7WUuJeko7",
+                "--version", "room_seg1"
+            ],
+            "justMyCode": false
+        },
+    ]
+}

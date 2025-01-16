@@ -2,6 +2,7 @@
 #! gt맵 만드는 옵션 추가해야됨
 import os
 import sys
+print(os.getcwd())
 from map.mapbuilder.utils.mapbuilder import MapBuilder
 from utils.parser import parse_args, save_args
 from omegaconf import OmegaConf

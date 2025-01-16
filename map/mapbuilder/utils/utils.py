@@ -1,5 +1,6 @@
 import numpy as np
 import cv2
+from PIL import Image
 from scipy.spatial.transform import Rotation as R
 
 def rgbLoader(path):
@@ -22,8 +23,29 @@ def poseLoader(path):
         rot = r.as_matrix()
         return pos, rot
     
+'''
+img to npy
+'''
 def depthLoader2(path):
-    raise NotImplementedError
+    with open(path, 'rb') as f:
+        depth = np.array(Image.open(f))
+        # print(depth)
+    return depth/4000 #/5000
 
 def poseLoader2(path):
-    raise NotImplementedError
+    with open(path, "r") as f:
+        lines = f.readlines()
+        inst_mat = ' '.join(lines[0].split())
+        inst_mat = np.array(inst_mat.split(), dtype=float).reshape((3, 3))
+        trans_mat = ' '.join(lines[1].split())
+        trans_mat = np.array(trans_mat.split(), dtype=float).reshape((4, 4))
+
+        rot = trans_mat[:3, :3]
+        pos = trans_mat[:3, 3]
+        # row = [float(x) for x in line.split()]
+        # pos = np.array(trans_mat.split()[:3], dtype=float).reshape((3, 1))
+        # quat = row[3:]
+        # r = R.from_quat(quat)
+        # rot = r.as_matrix()
+
+    return inst_mat, pos, rot

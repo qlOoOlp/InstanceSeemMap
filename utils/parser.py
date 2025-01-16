@@ -56,12 +56,15 @@ def parse_args():
         parser.add_argument("--threshold-confidence", type=float, default=0.9,
                             help="Threshold of confidence score for SEEM (Default: 0.5)")
         parser.add_argument("--seem-type", type=str, default="base",
-                            choices=["base","obstacle","tracking","bbox","dbscan","floodfill"],
+                            choices=["base","obstacle","tracking","bbox","dbscan","floodfill", "room_seg"],
                             help="Type of SEEM to use (Default: base)")
         parser.add_argument("--downsampling-ratio",type=float, default=1,
                             help="Downsampling ratio for SEEM input RGB image (Default: 1)")
         args, remaining_args = parser.parse_known_args(remaining_args)
         if args.seem_type != "base":
+            if args.seem_type=='room_seg':
+                parser.add_argument('--clip-version', type=str, default='ViT-B/32', choices=['ViT-B/16', 'ViT-B/32', 'RN101'])
+
             parser.add_argument("--no-submap", action="store_false",
                                 help="Do not make rgb map")
             parser.add_argument("--using-seemID", action="store_true",
@@ -92,6 +95,7 @@ def parse_args():
                                 help="Maximum height of the instance [m] (Default: 0.5)")
             parser.add_argument("--using-size", action="store_true",
                                 help="Use size information for SEEM feature")
+        
     elif args.vlm == "lseg":
         parser.add_argument('--lseg-ckpt', type=str, default=os.path.join(os.getcwd(),"lseg/ckpt/demo_e200.ckpt"))
         parser.add_argument('--crop-size', type=int, default=480)
@@ -121,13 +125,26 @@ def save_args(args):
         data_path = os.path.join(args.root_path, args.data_type, args.dataset_type)
     else:
         data_path = os.path.join(args.root_path, args.data_type)
+
+    ################ 수정1.
+    if args.seem_type=='room_seg':
+        data_path = args.root_path
+
     args.img_save_dir = os.path.join(data_path, args.scene_id)
     if not os.path.exists(args.img_save_dir):
         FileNotFoundError(f"Invalid scene ID: {args.scene_id}")
-    param_save_dir = os.path.join(args.img_save_dir, 'map')
+    if args.seem_type!='room_seg':
+        param_save_dir = os.path.join(args.img_save_dir, 'map')
+    else:
+        args.data_path = os.path.join(args.img_save_dir, args.seem_type, args.scene_id)
+        param_save_dir = os.path.join(args.data_path, 'map')
+        args.map_path = param_save_dir
+    ################
+
     param_save_dir = os.path.join(param_save_dir, f'{args.scene_id}_{args.version}')
     print(param_save_dir)
     os.makedirs(param_save_dir, exist_ok=True)
+
     # if not os.path.exists(param_save_dir):
     #     os.mkdir(param_save_dir)
     # sub_save_dir = max([0]+[int(e) for e in os.listdir(param_save_dir)])+1
@@ -157,6 +174,19 @@ def parse_args_indexing_map():
                         help="Scene name to use (Default: 2t7WUuJeko7_2)")
     parser.add_argument("--version", type=str, default="seem",
                         help="Version name to append to the output map name (e.g., grid_lseg_v1.npy)")
+    
+    ################################################################
+    parser.add_argument("--seem-type", type=str, default="base",
+                    choices=["base","obstacle","tracking","bbox","dbscan","floodfill", "room_seg"],
+                    help="Type of SEEM to use (Default: base)")
+    
+    now_root = os.getcwd()
+    now_root = os.path.join(now_root, "Data")
+    parser.add_argument("--root-path", type=str,
+                        help="Root path to use")
+    
+    ################################################################
+
     # parser.add_argument("--visualize", action="store_true",
     #                     help="Visualize the map")
     # parser.add_argument("--save-instance-map", action="store_true",
@@ -171,11 +201,7 @@ def parse_args_indexing_map():
     #                     help="A list of items (space-separated)")
     # parser.add_argument("--threshold-semSim", type=float, default=0.99,
     #                     help="Threshold of semantic similarity for SEEM feature (Default: 0.85)")
-    # data path
-    now_root = os.getcwd()
-    now_root = os.path.join(now_root, "Data")
-    parser.add_argument("--root-path", default = now_root, type=str,
-                        help="Root path to use")
+
     args = parser.parse_args()
     print(args)
     return args

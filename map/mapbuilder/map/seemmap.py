@@ -14,6 +14,8 @@ from map.mapbuilder.map.map import Map
 # from mapbuilder.utils.datamanager import DataManager, DataManager4Real
 from abc import abstractmethod
 
+from map.mapbuilder.utils.datamanager import DataManagerRoom
+
 class SeemMap(Map):
     def __init__(self, config:DictConfig):
         super().__init__(config)
