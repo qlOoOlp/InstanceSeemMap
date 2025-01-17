@@ -131,6 +131,7 @@ class DataManager():
     @property
     def rectification_matrix(self):
         return self._rectification_matrix
+        print("hello")
 
 class DataManager4Real(DataManager):
     def __init__(self, version:str, data_path:str, map_path:str, start_frame:int=0, end_frame:int=-1):

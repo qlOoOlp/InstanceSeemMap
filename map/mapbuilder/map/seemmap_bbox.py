@@ -57,7 +57,10 @@ class SeemMap_bbox(SeemMap):
         self.init_base_tf = self.base_transform @ self.init_base_tf @ np.linalg.inv(self.base_transform)
         # print(self.init_base_tf)
         self.inv_init_base_tf = np.linalg.inv(self.init_base_tf)
-        self.base2cam_tf = np.array([[1,0,0,0],[0,-1,0,1.5],[0,0,-1,0],[0,0,0,1]])
+        self.base2cam_tf = np.eye(4)
+        self.base2cam_tf[:3,:3] = self.datamanager.rectification_matrix
+        self.base2cam_tf[2,3] = self.camera_height
+        # self.base2cam_tf = np.array([[1,0,0,0],[0,-1,0,1.5],[0,0,-1,0],[0,0,0,1]])
         self.init_cam_tf = self.init_base_tf @ self.base2cam_tf
         self.inv_init_cam_tf = np.linalg.inv(self.init_cam_tf)
 
@@ -104,28 +107,27 @@ class SeemMap_bbox(SeemMap):
 
 
             if self.data_type == "rtabmap":
-                pc, mask = depth2pc4Real(depth, self.datamanager.projection_matrix, rgb.shape[:2], min_depth=0.5, max_depth=self.max_depth)
-                # shuffle_mask = np.arange(pc.shape[1])
-                # np.random.shuffle(shuffle_mask)
-                # shuffle_mask = shuffle_mask[::self.config['depth_sample_rate']]
-                # mask = mask[shuffle_mask]
-                # pc = pc[:, shuffle_mask]
-                # pc = pc[:, mask]
-                pc_global = transform_pc(pc, tf)
-                # rgb_cam_mat = get_sim_cam_mat4Real(self.datamanager.projection_matrix, rgb.shape[:2], rgb.shape[:2])
-                # feat_cam_mat = get_sim_cam_mat4Real(self.datamanager.projection_matrix, rgb.shape[:2], map_idx.shape)
-            else:
-                pc, mask = depth2pc(depth, max_depth=self.max_depth, min_depth=0.5)
-                # shuffle_mask = np.arange(pc.shape[1])
-                # np.random.shuffle(shuffle_mask)
-                # shuffle_mask = shuffle_mask[::self.config['depth_sample_rate']]
-                # mask = mask[shuffle_mask]
-                # pc = pc[:, shuffle_mask]
-                # pc = pc[:, mask]
+                pc, mask = depth2pc4Real(depth, self.datamanager.projection_matrix, rgb.shape[:2], min_depth=self.min_depth, max_depth=self.max_depth)
+
+                shuffle_mask = np.zeros(pc.shape[1], dtype=bool)
+                shuffle_mask[np.random.choice(pc.shape[1],
+                                              size=pc.shape[1] // self.config['depth_sample_rate'],
+                                              replace=False)] = True
+                pc_mask = shuffle_mask & mask
+
                 pc_transform = tf @ self.base_transform @ self.base2cam_tf
                 pc_global = transform_pc(pc, pc_transform)
-                # rgb_cam_mat = get_sim_cam_mat(rgb.shape[0], rgb.shape[1])
-                # feat_cam_mat = get_sim_cam_mat(map_idx.shape[0], map_idx.shape[1])
+            else:
+                pc, mask = depth2pc(depth, max_depth=self.max_depth, min_depth=self.min_depth)
+
+                shuffle_mask = np.zeros(pc.shape[1], dtype=bool)
+                shuffle_mask[np.random.choice(pc.shape[1],
+                                              size=pc.shape[1] // self.config['depth_sample_rate'],
+                                              replace=False)] = True
+                pc_mask = shuffle_mask & mask
+                pc_transform = tf @ self.base_transform @ self.base2cam_tf
+                pc_global = transform_pc(pc, pc_transform)
+
             frame_mask = np.zeros_like(map_idx)
             depth_shape = depth.shape
             h_ratio = depth.shape[0] / map_idx.shape[0]
@@ -136,12 +138,11 @@ class SeemMap_bbox(SeemMap):
             # depth vaule filtering
             # if not self.bool_upsample and (h_ratio != 4 or w_ratio != 4):
             #     raise ValueError(f"Ratio between depth and SEEM Feature map is not 4: h_ratio = {h_ratio}, w_ratio = {w_ratio}")
-            if self.bool_IQR:  map_idx = IQR(map_idx, pc, depth_shape, h_ratio, w_ratio, self.max_depth, self.min_depth)
-            else: map_idx = depth_filtering(map_idx, pc, depth_shape, h_ratio, w_ratio, self.max_depth, self.min_depth)
+            # if self.bool_IQR:  map_idx = IQR(map_idx, pc, depth_shape, h_ratio, w_ratio, self.max_depth, self.min_depth)
+            # else: map_idx = depth_filtering(map_idx, pc, depth_shape, h_ratio, w_ratio, self.max_depth, self.min_depth)
 
             # rgb map processing
-            # print("submap process")
-            if self.bool_submap: self.submap_processing(map_idx, depth, rgb, pc, pc_global, h_ratio, w_ratio)
+            if self.bool_submap: self.submap_processing(map_idx, depth, rgb, pc, pc_global, pc_mask, h_ratio, w_ratio)
 
             # Projecting SEEM feature map to the grid map
             # print("projection process")
@@ -152,10 +153,13 @@ class SeemMap_bbox(SeemMap):
                 feat_map = np.zeros_like(self.grid, dtype=np.float32)
                 feat_map_bool = np.zeros_like(self.grid, dtype=np.bool)
                 for i,j in np.argwhere(feat_map_inst_mask ==1):
+                    if not pc_mask[i*depth_shape[1]+j]: continue
+                    if depth[i,j] < self.min_depth or depth[i,j] > self.max_depth:
+                        raise ValueError("Depth filtering is failed")
                     new_i = int(i * h_ratio)
                     new_j = int(j * w_ratio)
-                    if depth[new_i, new_j] < self.min_depth or depth[new_i,new_j]> self.max_depth:
-                        raise Exception("Depth filtering is failed")
+                    # if depth[new_i, new_j] < self.min_depth or depth[new_i,new_j]> self.max_depth:
+                    #     raise Exception("Depth filtering is failed")
                     pp = pc_global[:,new_i*depth_shape[1]+new_j]
                     if pp[2] >1e-4 and pp[2] < 2:
                         x,y = pos2grid_id(self.gs,self.cs,pp[0],pp[1])
@@ -188,7 +192,6 @@ class SeemMap_bbox(SeemMap):
                     pixels = np.sum(candidate_mask)
                     frame_mask[candidate_mask == seem_id] = max_id
                 else:
-                    if avg_height > 2: continue#self.max_height: continue #! 천장 조명 필터링
                     candidate_emb = embeddings[seem_id]
                     candidate_emb_normalized = candidate_emb / np.linalg.norm(candidate_emb)
                     candidate_category_id = category_dict[seem_id]
@@ -259,19 +262,21 @@ class SeemMap_bbox(SeemMap):
                                 
 
             
-    def submap_processing(self, map_idx:NDArray, depth:NDArray, rgb:NDArray, pc_local: NDArray, pc_global: NDArray, h_ratio:float, w_ratio:float):
-        for i in range(0,depth.shape[0],4):
-            for j in range(0,depth.shape[1],4):
-                if depth[i,j] < self.min_depth or depth[i,j] > self.max_depth: continue
+    def submap_processing(self, map_idx:NDArray, depth:NDArray, rgb:NDArray, pc_local: NDArray, pc_global: NDArray,pc_mask:NDArray, h_ratio:float, w_ratio:float):
+        for i in range(0,depth.shape[0]):
+            for j in range(0,depth.shape[1]):
+                if not pc_mask[i*depth.shape[1]+j]:
+                    continue
+                if depth[i,j] < self.min_depth or depth[i,j] > self.max_depth:
+                    print(depth[i,j])
+                    print(pc_local[:,i*depth.shape[1]+j])
+                    raise ValueError("Depth filtering is failed")
                 pp = pc_global[:,i*depth.shape[1]+j]
+                
                 # h = pc_local[:,i*depth.shape[1]+j][1]
                 h = pp[2]
                 
                 x,y = pos2grid_id(self.gs,self.cs,pp[0],pp[1])
-                # print(pp, pc_local[:,i*depth.shape[1]+j])
-                # print(self.cs, h, int(h/self.cs))
-                # print(int(h/self.cs))
-                # raise Exception("sdfdsf")
                 if h > 2: continue #self.max_height: continue
                 if h > self.color_top_down_height[y,x]:
                     # print(h)
