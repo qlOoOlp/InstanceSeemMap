@@ -9,6 +9,8 @@ from map.utils.clip_utils import get_text_feats
 from map.seem.base_model import build_vl_model
 
 
+CLIP_FEAT_DIM_DICT = {'RN50': 1024, 'RN101': 512, 'RN50x4': 640, 'RN50x16': 768,
+                    'RN50x64': 1024, 'ViT-B/32': 512, 'ViT-B/16': 512, 'ViT-L/14': 768}
 
 
 
@@ -37,6 +39,7 @@ class idxMap():
             # self.grid_path = os.path.join(path,"map",f"{scene_id}_{version}",f"grid_{version}.npy")
             # self.grid = load_map(self.grid_path)
             # self.grid = self.grid[xmin:xmax+1, ymin:ymax+1]
+            self.clip_feat_dim = CLIP_FEAT_DIM_DICT["ViT-B/32"]
             self.grid = grid
             self.idx_map = np.zeros(self.grid.shape[:2])
             self.lsegmap()
@@ -102,8 +105,10 @@ class idxMap():
         text_feats = self.model.encode_prompt(self.categories, task = "default")
         text_feats = text_feats.cpu().numpy()
         instance_feat = []
-        self.embeddings[1]["avg_height"] = 2
-        self.embeddings[2]["avg_height"] = 1.5
+
+        #! here
+        # self.embeddings[1]["avg_height"] = 2
+        # self.embeddings[2]["avg_height"] = 1.5
         for id, val in self.embeddings.items():
             instance_feat.append(val["embedding"])
         instance_feat = np.array(instance_feat)
@@ -126,12 +131,13 @@ class idxMap():
                         self.topdown_instance_map[i,j] = key
                         self.idx_map[i,j] = self.sorted_idx_dict[key][0]
                 else:
-                    max_height = 50000
+                    #! here
+                    max_height = 0# 50000
                     for key, val in self.grid1[i,j].items():
                         # if key == 2: continue
                         candidate_height = self.embeddings[key]["avg_height"] #^ using instance average height value
                         # candidate_height = self.grid1[i,j][key][1] #^ using pixel level height value
-                        if max_height > candidate_height:
+                        if max_height < candidate_height:
                             max_height = candidate_height
                             candidate_val = key
                     self.topdown_instance_map[i,j] = candidate_val
