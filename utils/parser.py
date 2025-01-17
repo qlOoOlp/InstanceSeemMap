@@ -80,11 +80,11 @@ def parse_args():
                                 help="Threshold of geometric similarity for SEEM feature (Default: 0.4)")
             parser.add_argument("--threshold-bbox", type=float, default=0.6,
                                 help="Threshold of bbox iou (Default: 0.4)")
-            parser.add_argument("--threshold-semSim-post", type=float, default=0.8,
+            parser.add_argument("--threshold-semSim-post", type=float, default=0.85,
                                 help="Threshold of semantic similarity for SEEM feature (Default: 0.85)")
             parser.add_argument("--threshold-geoSim-post", type=float, default=0.4,
                                 help="Threshold of geometric similarity for SEEM feature (Default: 0.4)")
-            parser.add_argument("--threshold-pixelSize-post", type=int, default=100,
+            parser.add_argument("--threshold-pixelSize-post", type=int, default=50,
                                 help="Threshold of pixel size for SEEM feature (Default: 100)")
             parser.add_argument("--no-postprocessing", action="store_false",
                                 help="Do not apply postprocessing to the SEEM feature map")
@@ -93,7 +93,7 @@ def parse_args():
             parser.add_argument("--not-using-size", action="store_false",
                                 help="Use size information for SEEM feature")
     elif args.vlm == "lseg":
-        parser.add_argument('--lseg-ckpt', type=str, default=os.path.join(os.getcwd(),"lseg/ckpt/demo_e200.ckpt"))
+        parser.add_argument('--lseg-ckpt', type=str, default=os.path.join(os.getcwd(),"map/lseg/ckpt/demo_e200.ckpt"))
         parser.add_argument('--crop-size', type=int, default=480)
         parser.add_argument('--base-size', type=int, default=520)
         parser.add_argument('--lang', type=str, default='door,chair,ground,ceiling,other')

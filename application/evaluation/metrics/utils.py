@@ -107,8 +107,8 @@ class idxMap():
         instance_feat = []
 
         #! here
-        self.embeddings[1]["avg_height"] = 2
-        self.embeddings[2]["avg_height"] = 1.5
+        # self.embeddings[1]["avg_height"] = 2
+        # self.embeddings[2]["avg_height"] = 1.5
         for id, val in self.embeddings.items():
             instance_feat.append(val["embedding"])
         instance_feat = np.array(instance_feat)
@@ -132,12 +132,12 @@ class idxMap():
                         self.idx_map[i,j] = self.sorted_idx_dict[key][0]
                 else:
                     #! here
-                    max_height = 50000
+                    max_height = 0# 50000
                     for key, val in self.grid1[i,j].items():
                         # if key == 2: continue
                         candidate_height = self.embeddings[key]["avg_height"] #^ using instance average height value
                         # candidate_height = self.grid1[i,j][key][1] #^ using pixel level height value
-                        if max_height > candidate_height:
+                        if max_height < candidate_height:
                             max_height = candidate_height
                             candidate_val = key
                     self.topdown_instance_map[i,j] = candidate_val
