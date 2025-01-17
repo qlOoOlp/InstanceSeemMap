@@ -25,7 +25,7 @@ class SeemMap_bbox(SeemMap):
         self.bool_submap = self.config["no_submap"]
         self.bool_seemID = self.config["using_seemID"]
         self.bool_upsample = self.config["upsample"]
-        self.bool_IQR = self.config["no_IQR"]
+        self.bool_IQR = self.config["using_IQR"]
         self.bool_postprocess = self.config["no_postprocessing"]
         self.bool_size = self.config["not_using_size"]
 
