@@ -71,8 +71,6 @@ def parse_args():
                                 help = "Use SEEM category ID for instance ID")
             parser.add_argument("--upsample", action="store_true",
                                 help="Upsample the SEEM feature map before using it")
-            parser.add_argument("--no-IQR", action="store_false",
-                                help="Apply IQR-based preprocessing to remove outlier depth values for each instance")
             parser.add_argument("--min-size-denoising-after-projection", type=int, default=5,
                                 help="Minimum size of instance after denoising projected features to keep it (Default: 5)")
             parser.add_argument("--threshold-pixelSize", type=int, default=25,
@@ -87,7 +85,7 @@ def parse_args():
                                 help="Threshold of semantic similarity for SEEM feature (Default: 0.85)")
             parser.add_argument("--threshold-geoSim-post", type=float, default=0.4,
                                 help="Threshold of geometric similarity for SEEM feature (Default: 0.4)")
-            parser.add_argument("--threshold-pixelSize-post", type=int, default=50,
+            parser.add_argument("--threshold-pixelSize-post", type=int, default=25,
                                 help="Threshold of pixel size for SEEM feature (Default: 100)")
             parser.add_argument("--no-postprocessing", action="store_false",
                                 help="Do not apply postprocessing to the SEEM feature map")

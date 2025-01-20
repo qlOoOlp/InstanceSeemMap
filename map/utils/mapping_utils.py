@@ -746,13 +746,39 @@ def depth2pc(depth, fov=90, intr_mat=None, min_depth=0.1, max_depth=4):#10):
     z = depth.reshape((1, -1))[:, :]
 
     p_2d = np.vstack([x, y, np.ones_like(x)])
+
     pc = cam_mat_inv @ p_2d
     pc = pc * z
     mask = pc[2, :] > min_depth
 
     mask = np.logical_and(mask, pc[2, :] < max_depth)
     # print(pc[2,:])
-    # print(pc)
+    # pc = pc[:, mask]
+    return pc, mask
+
+
+def depth2pc4Real(depth, cam_mat, original_resolution, min_depth=0.1, max_depth=3):
+
+    h, w = depth.shape
+    target_resolution = (h, w)
+    # cam_mat = intr_mat
+    # if intr_mat is None:
+    cam_mat = get_sim_cam_mat4Real(cam_mat, original_resolution, target_resolution)
+    # cam_mat[:2, 2] = 0
+    cam_mat_inv = np.linalg.inv(cam_mat)
+
+    y, x = np.meshgrid(np.arange(h), np.arange(w), indexing="ij")
+    x = x.reshape((1, -1))[:, :] + 0.5
+    y = y.reshape((1, -1))[:, :] + 0.5
+    z = depth.reshape((1, -1))[:, :]
+
+    p_2d = np.vstack([x, y, np.ones_like(x)])
+
+    pc = cam_mat_inv @ p_2d
+    pc = pc * z
+    mask = pc[2, :] > min_depth
+
+    mask = np.logical_and(mask, pc[2, :] < max_depth)
     # pc = pc[:, mask]
     return pc, mask
 
@@ -772,53 +798,29 @@ def get_sim_cam_mat(h, w):
     return cam_mat
 
 
-def depth2pc4Real(depth, cam_mat, original_resolution, intr_mat=None, min_depth=0.1, max_depth=3):
+# def depth2pc4Real(depth, cam_mat, original_resolution, intr_mat=None, min_depth=0.1, max_depth=3):
 
-    h, w = depth.shape
-    target_resolution = (h, w)
-    cam_mat = intr_mat
-    if intr_mat is None:
-        cam_mat = get_sim_cam_mat4Real(cam_mat, original_resolution, target_resolution)
-    # cam_mat[:2, 2] = 0
-    cam_mat_inv = np.linalg.inv(cam_mat)
+#     h, w = depth.shape
+#     target_resolution = (h, w)
+#     # cam_mat = intr_mat
+#     # if intr_mat is None:
+#     #     cam_mat = get_sim_cam_mat4Real(cam_mat, original_resolution, target_resolution)
+#     # cam_mat[:2, 2] = 0
+#     cam_mat_inv = np.linalg.inv(cam_mat)
 
-    y, x = np.meshgrid(np.arange(h), np.arange(w), indexing="ij") 
-    x = x.reshape((1, -1))[:, :] + 0.5
-    y = y.reshape((1, -1))[:, :] + 0.5
-    z = depth.reshape((1, -1))[:, :]
+#     y, x = np.meshgrid(np.arange(h), np.arange(w), indexing="ij")
+#     x = x.reshape((1, -1))[:, :] + 0.5
+#     y = y.reshape((1, -1))[:, :] + 0.5
+#     z = depth.reshape((1, -1))[:, :]
 
-    p_2d = np.vstack([x, y, np.ones_like(x)])
-    pc = cam_mat_inv @ p_2d
-    pc = pc * z
-    mask = pc[2, :] > min_depth
+#     p_2d = np.vstack([x, y, np.ones_like(x)])
+#     pc = cam_mat_inv @ p_2d
+#     pc = pc * z
+#     mask = pc[2, :] > min_depth
 
-    mask = np.logical_and(mask, pc[2, :] < max_depth)
-    # pc = pc[:, mask]
-    return pc, mask
-
-def depth2pc4Real(depth, original_resolution, intr_mat=None, min_depth=0.1, max_depth=3):
-
-    h, w = depth.shape
-    target_resolution = (h, w)
-    cam_mat = intr_mat
-    if intr_mat is None:
-        cam_mat = get_sim_cam_mat4Real(cam_mat, original_resolution, target_resolution)
-    # cam_mat[:2, 2] = 0
-    cam_mat_inv = np.linalg.inv(cam_mat)
-
-    y, x = np.meshgrid(np.arange(h), np.arange(w), indexing="ij")
-    x = x.reshape((1, -1))[:, :] + 0.5
-    y = y.reshape((1, -1))[:, :] + 0.5
-    z = depth.reshape((1, -1))[:, :]
-
-    p_2d = np.vstack([x, y, np.ones_like(x)])
-    pc = cam_mat_inv @ p_2d
-    pc = pc * z
-    mask = pc[2, :] > min_depth
-
-    mask = np.logical_and(mask, pc[2, :] < max_depth)
-    # pc = pc[:, mask]
-    return pc, mask
+#     mask = np.logical_and(mask, pc[2, :] < max_depth)
+#     # pc = pc[:, mask]
+#     return pc, mask
 
 
 def get_sim_cam_mat4Real(cam_mat, original_resolution, target_resolution):

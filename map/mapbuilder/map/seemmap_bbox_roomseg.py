@@ -30,7 +30,6 @@ class SeemMap_roomseg(SeemMap):
         self.bool_submap = self.config["no_submap"]
         self.bool_seemID = self.config["using_seemID"]
         self.bool_upsample = self.config["upsample"]
-        self.bool_IQR = self.config["no_IQR"]
         self.bool_postprocess = self.config["no_postprocessing"]
         self.bool_size = self.config["using_size"]
 
@@ -56,8 +55,25 @@ class SeemMap_roomseg(SeemMap):
         clip_model.eval()
         ####
 
-        # with tempfile.TemporaryDirectory(dir=self.map_path) as temp_save_dir:
-        tf_list = []
+
+        b_pos, b_rot = self.datamanager.get_init_pose()
+        base_pose = np.eye(4)
+        base_pose[:3, :3] = b_rot
+        base_pose[:3, 3] = b_pos.reshape(-1)
+        # print(base_pose)
+        self.init_base_tf = base_pose
+        self.base_transform = np.array([[0,0,-1,0],[-1,0,0,0],[0,1,0,0],[0,0,0,1]])
+        # print(self.init_base_tf)
+        self.init_base_tf = self.base_transform @ self.init_base_tf @ np.linalg.inv(self.base_transform)
+        # print(self.init_base_tf)
+        self.inv_init_base_tf = np.linalg.inv(self.init_base_tf)
+        self.base2cam_tf = np.eye(4)
+        self.base2cam_tf[:3,:3] = self.datamanager.rectification_matrix
+        self.base2cam_tf[1,3] = self.camera_height
+        self.init_cam_tf = self.init_base_tf @ self.base2cam_tf
+        self.inv_init_cam_tf = np.linalg.inv(self.init_cam_tf)
+        
+
         pre_matching_id = {}
         new_instance_id = 3
         pbar = tqdm(range(self.datamanager.numData))
@@ -65,8 +81,6 @@ class SeemMap_roomseg(SeemMap):
             # print("start")
             rgb, depth, (inst_mat, pos, rot), gt_label, rgb_path = self.datamanager.data_getter()
             # rgb, depth, (pos,rot) = self.datamanager.data_getter()
-            rot = rot @ self.datamanager.rectification_matrix
-            pos[1] += self.camera_height
             # if pos[1] < 0:
             #     print(f"Height is negative: {pos[1]}")
             #     print(pos[1])
@@ -74,10 +88,9 @@ class SeemMap_roomseg(SeemMap):
             pose = np.eye(4)
             pose[:3, :3] = rot
             pose[:3, 3] = pos.reshape(-1)
-            tf_list.append(pose)
-            if len(tf_list) == 1:
-                init_tf_inv = np.linalg.inv(tf_list[0])
-            tf = init_tf_inv @ pose
+
+            base_pose = self.base_transform @ pose @ np.linalg.inv(self.base_transform)
+            tf = self.inv_init_base_tf @ base_pose
 
             #########
         
@@ -104,32 +117,32 @@ class SeemMap_roomseg(SeemMap):
 
 
             if self.data_type == "rtabmap":
-                pc, mask = depth2pc4Real(depth, self.datamanager.projection_matrix, rgb.shape[:2], min_depth=0.5, max_depth=self.max_depth)
-                # shuffle_mask = np.arange(pc.shape[1])
-                # np.random.shuffle(shuffle_mask)
-                # shuffle_mask = shuffle_mask[::self.config['depth_sample_rate']]
-                # mask = mask[shuffle_mask]
-                # pc = pc[:, shuffle_mask]
-                # pc = pc[:, mask]
-                pc_global = transform_pc(pc, tf)
-                # rgb_cam_mat = get_sim_cam_mat4Real(self.datamanager.projection_matrix, rgb.shape[:2], rgb.shape[:2])
-                # feat_cam_mat = get_sim_cam_mat4Real(self.datamanager.projection_matrix, rgb.shape[:2], map_idx.shape)
+                pc, mask = depth2pc4Real(depth, self.datamanager.projection_matrix, rgb.shape[:2], min_depth=self.min_depth, max_depth=self.max_depth)
+
+                shuffle_mask = np.zeros(pc.shape[1], dtype=bool)
+                shuffle_mask[np.random.choice(pc.shape[1],
+                                              size=pc.shape[1] // self.config['depth_sample_rate'],
+                                              replace=False)] = True
+                pc_mask = shuffle_mask & mask
+
+                pc_transform = tf @ self.base_transform @ self.base2cam_tf
+                pc_global = transform_pc(pc, pc_transform)
             else:
                 if self.seem_type=='room_seg':
-                    pc, mask = depth2pc4Real(depth, rgb.shape[:2], inst_mat, min_depth=0.5, max_depth=3)
+                    pc, mask = depth2pc4Real(depth, inst_mat, rgb.shape[:2], min_depth=self.min_depth, max_depth=self.max_depth)
                     pc_global = transform_pc(pc, tf)
                     # rgb_cam_mat = get_sim_cam_mat4Real(inst_mat, rgb.shape[:2],rgb.shape[:2])
                 else:
                     pc, mask = depth2pc(depth, max_depth=self.max_depth, min_depth=0.5)
-                    # shuffle_mask = np.arange(pc.shape[1])
-                    # np.random.shuffle(shuffle_mask)
-                    # shuffle_mask = shuffle_mask[::self.config['depth_sample_rate']]
-                    # mask = mask[shuffle_mask]
-                    # pc = pc[:, shuffle_mask]
-                    # pc = pc[:, mask]
-                    pc_global = transform_pc(pc, tf)
-                    # rgb_cam_mat = get_sim_cam_mat(rgb.shape[0], rgb.shape[1])
-                    # feat_cam_mat = get_sim_cam_mat(map_idx.shape[0], map_idx.shape[1])
+
+                    shuffle_mask = np.zeros(pc.shape[1], dtype=bool)
+                    shuffle_mask[np.random.choice(pc.shape[1],
+                                                size=pc.shape[1] // self.config['depth_sample_rate'],
+                                                replace=False)] = True
+                    pc_mask = shuffle_mask & mask
+                    # pc_mask = mask
+                    pc_transform = tf @ self.base_transform @ self.base2cam_tf
+                    pc_global = transform_pc(pc, pc_transform)
             
             frame_mask = np.zeros_like(map_idx)
             depth_shape = depth.shape
@@ -141,12 +154,10 @@ class SeemMap_roomseg(SeemMap):
             # depth vaule filtering
             # if not self.bool_upsample and (h_ratio != 4 or w_ratio != 4):
             #     raise ValueError(f"Ratio between depth and SEEM Feature map is not 4: h_ratio = {h_ratio}, w_ratio = {w_ratio}")
-            if self.bool_IQR:  map_idx = IQR(map_idx, pc, depth_shape, h_ratio, w_ratio, self.max_depth, self.min_depth)
-            else: map_idx = depth_filtering(map_idx, pc, depth_shape, h_ratio, w_ratio, self.max_depth, self.min_depth)
 
             # rgb map processing
             # print("submap process")
-            if self.bool_submap: self.submap_processing(map_idx, depth, rgb, pc, pc_global, h_ratio, w_ratio, clip_features, gt_label)
+            if self.bool_submap: self.submap_processing(depth, rgb, pc, pc_global, pc_mask, clip_features, gt_label)
 
             # Projecting SEEM feature map to the grid map
             # print("projection process")
@@ -157,14 +168,16 @@ class SeemMap_roomseg(SeemMap):
                 feat_map = np.zeros_like(self.grid, dtype=np.float32)
                 feat_map_bool = np.zeros_like(self.grid, dtype=np.bool)
                 for i,j in np.argwhere(feat_map_inst_mask ==1):
+                    if not pc_mask[i*depth_shape[1]+j]: continue
+                    if depth[i,j] < self.min_depth or depth[i,j] > self.max_depth:
+                        raise ValueError("Depth filtering is failed")
                     new_i = int(i * h_ratio)
                     new_j = int(j * w_ratio)
-                    if depth[new_i, new_j] < self.min_depth or depth[new_i,new_j]> self.max_depth:
-                        raise Exception("Depth filtering is failed")
                     pp = pc_global[:,new_i*depth_shape[1]+new_j]
-                    x,y = pos2grid_id(self.gs,self.cs,pp[0],pp[2])
-                    feat_map[y,x] = pp[1]
-                    feat_map_bool[y,x]=True
+                    if pp[2] >1e-4 and pp[2] < 2:
+                        x,y = pos2grid_id(self.gs,self.cs,pp[0],pp[1])
+                        feat_map[y,x] = pp[2]
+                        feat_map_bool[y,x]=True
                 feat_map_bool = self.denoising(feat_map_bool, self.min_size_denoising_after_projection)
                 if np.sum(feat_map_bool) < self.threshold_pixelSize: 
                     map_idx[map_idx == seem_id] = 0
@@ -192,7 +205,6 @@ class SeemMap_roomseg(SeemMap):
                     pixels = np.sum(candidate_mask)
                     frame_mask[candidate_mask == seem_id] = max_id
                 else:
-                    if avg_height < -self.max_height: continue #! 천장 조명 필터링
                     candidate_emb = embeddings[seem_id]
                     candidate_emb_normalized = candidate_emb / np.linalg.norm(candidate_emb)
                     candidate_category_id = category_dict[seem_id]
@@ -263,21 +275,28 @@ class SeemMap_roomseg(SeemMap):
                                 
 
             
-    def submap_processing(self, map_idx:NDArray, depth:NDArray, rgb:NDArray, pc_local: NDArray, pc_global: NDArray, h_ratio:float, w_ratio:float, clip_features, gt_label):
-        for i in range(0,depth.shape[0],4):
-            for j in range(0,depth.shape[1],4):
-                if depth[i,j] < self.min_depth or depth[i,j] > self.max_depth: continue
+    def submap_processing(self, depth:NDArray, rgb:NDArray, pc_local: NDArray, pc_global: NDArray, pc_mask:NDArray, clip_features, gt_label):
+        for i in range(0,depth.shape[0]):
+            for j in range(0,depth.shape[1]):
+                if not pc_mask[i*depth.shape[1]+j]:
+                    continue
+                if depth[i,j] < self.min_depth or depth[i,j] > self.max_depth:
+                    print(depth[i,j])
+                    print(pc_local[:,i*depth.shape[1]+j])
+                    raise ValueError("Depth filtering is failed")
                 pp = pc_global[:,i*depth.shape[1]+j]
-                h = pc_local[:,i*depth.shape[1]+j][1]
-                # print(pp,pc_local[:,i*depth.shape[1]+j])
-                # raise Exception("sdf")
-                x,y = pos2grid_id(self.gs,self.cs,pp[0],pp[2])
-                if h < -self.max_height: continue
-                if h < self.color_top_down_height[y,x]:
+                
+                # h = pc_local[:,i*depth.shape[1]+j][1]
+                h = pp[2]
+                
+                x,y = pos2grid_id(self.gs,self.cs,pp[0],pp[1])
+                self.scene_mask[y,x] = 1
+                if h > 2: continue #self.max_height: continue
+                if h > self.color_top_down_height[y,x]:
                     # print(h)
                     self.color_top_down[y,x] = rgb[i,j,:]
                     self.color_top_down_height[y,x] = h
-                if h > self.camera_height:continue
+                if h < 1e-4 : continue# self.camera_height:continue
                 self.obstacles[y,x]=1
                 
                 self.clip_grid[y, x] = (self.clip_grid[y, x] * self.weight[y, x] + clip_features) / (self.weight[y, x] + 1)
@@ -584,10 +603,11 @@ class SeemMap_roomseg(SeemMap):
     
     def _init_map(self):
         if self.bool_submap:
-            self.color_top_down_height = (self.camera_height + 1) * np.ones((self.gs, self.gs), dtype=np.float32)
+            self.color_top_down_height = np.zeros((self.gs, self.gs), dtype=np.float32)
             self.color_top_down = np.zeros((self.gs, self.gs, 3), dtype=np.uint8)
             self.obstacles = np.zeros((self.gs, self.gs), dtype=np.uint8)
             self.weight = np.zeros((self.gs, self.gs), dtype=np.float32)
+            self.scene_mask = np.zeros((self.gs, self.gs), dtype=np.uint8)
         self.grid = np.empty((self.gs,self.gs),dtype=object)
         self.clip_grid = np.zeros((self.gs,self.gs, self.feat_dim), dtype=np.float32)
         self.gt = np.zeros((self.config["gs"], self.config["gs"]), dtype=np.uint8)
@@ -598,7 +618,7 @@ class SeemMap_roomseg(SeemMap):
         background_emb = self.model.encode_prompt(["wall","floor"], task = "default")
         background_emb = background_emb.cpu().numpy()
         self.instance_dict = {}
-        self.instance_dict[1] = {"embedding":background_emb[0,:], "count":0,"size":0, "frames":{}, "category_id":1, "avg_height":5000, "bbox":(0,0,self.gs,self.gs)}
+        self.instance_dict[1] = {"embedding":background_emb[0,:], "count":0,"size":0, "frames":{}, "category_id":1, "avg_height":0, "bbox":(0,0,self.gs,self.gs)}
         self.instance_dict[2] = {"embedding":background_emb[1,:], "count":0,"size":0, "frames":{}, "category_id":2, "avg_height":0, "bbox": (0,0,self.gs,self.gs)}
         self.frame_mask_dict = {}
     
@@ -611,7 +631,8 @@ class SeemMap_roomseg(SeemMap):
                                     instance_dict=self.instance_dict,
                                     frame_mask_dict=self.frame_mask_dict,
                                     clip_grid=self.clip_grid,
-                                    gt=self.gt)
+                                    gt=self.gt,
+                                    scene_mask=self.scene_mask)
         else:
             self.datamanager.save_map(grid=self.grid,
                                     instance_dict=self.instance_dict,
