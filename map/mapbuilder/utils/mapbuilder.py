@@ -6,6 +6,7 @@ import clip
 from sklearn.cluster import DBSCAN
 
 from map.utils.matterport3d_categories import mp3dcat
+from map.utils.replica_categories import replica_cat
 from map.utils.clip_utils import get_text_feats
 from map.seem.base_model import build_vl_model
 from map.mapbuilder.utils.datamanager import DataManager, DataManager4Real, DataLoader
@@ -59,15 +60,57 @@ class IndexMapBuilder():
         self.xmin, self.xmax, self.ymin, self.ymax = np.min(x_indices), np.max(x_indices), np.min(y_indices), np.max(y_indices)
     def processing(self):
         self.wall_mask = np.zeros((self.dataloader.grid_map.shape[0],self.dataloader.grid_map.shape[1]), dtype=bool)
+        self.window_mask = np.zeros((self.dataloader.grid_map.shape[0],self.dataloader.grid_map.shape[1]), dtype=bool)
+        self.door_mask = np.zeros((self.dataloader.grid_map.shape[0],self.dataloader.grid_map.shape[1]), dtype=bool)
         for i in range(self.dataloader.grid_map.shape[0]):
-            for j in range(self.dataloader.grid_map.shape[1]):
+            for j in range(self.dataloader.grid_map.shape[1]): 
                 if 1 in self.dataloader.grid_map[i,j]:
                     self.wall_mask[i,j] = 1
+        self.model = build_vl_model("seem", input_size=360)
+        if self.conf["dataset_type"]== "mp3d":
+            self.categories = mp3dcat
+        elif self.conf["dataset_type"]== "replica":
+            self.categories = replica_cat
+        else:
+            raise ValueError(f"dataset_type {self.conf['dataset_type']} not supported")
+        text_feats = self.model.encode_prompt(self.categories, task = "default")
+        text_feats = text_feats.cpu().numpy()
+        instance_feat = []
+
+        windows = []
+        doors = []
+
+        for id, val in self.embeddings.items():
+            instance_feat.append(val["embedding"])
+        instance_feat = np.array(instance_feat)
+        self.matching_cos = instance_feat @ text_feats.T
+        for id in self.embeddings.keys():
+            cos_list = self.matching_cos[list(self.embeddings.keys()).index(id)]
+            cos_list2 = np.argsort(cos_list)[::-1]
+            if np.max(cos_list) == 0: # ours는 instance마다 진행하니 아무것도 할당 안돼 0벡터 갖는 경우가 없어 이 처리 과정이 불필요하긴함
+                swit = np.where(cos_list2 == 0)[0][0]
+                cos_list2[swit] = cos_list2[0]
+                cos_list2[0]=0
+            if "window" in cos_list2[0]:
+                windows.append(id)
+            if "door" in cos_list2[0]:
+                doors.append(id)
+        for i in range(self.dataloader.grid_map.shape[0]):
+            for j in range(self.dataloader.grid_map.shape[1]):
+                if len(self.dataloader.grid_map[i,j].keys()) == 0 : continue
+                for key in self.dataloader.grid_map[i,j].keys():
+                    if key in windows:
+                        self.window_mask[i,j] = 1
+                    if key in doors:
+                        self.door_mask[i,j] = 1
+
         obstacles_pil = Image.fromarray(self.wall_mask[self.xmin:self.xmax+1, self.ymin:self.ymax+1])
         plt.figure(figsize=(8,6), dpi=120)
         plt.imshow(obstacles_pil, cmap='gray')
         plt.show()
         self.dataloader.save_map(wall_mask=self.wall_mask)
+        self.dataloader.save_map(window_mask=self.window_mask)
+        self.dataloader.save_map(door_mask=self.door_mask)
 
 
 

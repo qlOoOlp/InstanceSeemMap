@@ -150,7 +150,7 @@ class DataManager4Real(DataManager):
             except:
                 raise ValueError("Invalid projection matrix")
             try:
-                rectification_matrix = np.array(rectification_matrix).reshape(3, 3)
+                rectification_matrix = np.array(rectification_matrix).reshape(4, 4)[:3,:3]
             except:
                 raise ValueError("Invalid rectification matrix")
         self._projection_matrix = projection_matrix

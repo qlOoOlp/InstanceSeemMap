@@ -71,8 +71,6 @@ def parse_args():
                                 help = "Use SEEM category ID for instance ID")
             parser.add_argument("--upsample", action="store_true",
                                 help="Upsample the SEEM feature map before using it")
-            parser.add_argument("--no-IQR", action="store_false",
-                                help="Apply IQR-based preprocessing to remove outlier depth values for each instance")
             parser.add_argument("--min-size-denoising-after-projection", type=int, default=5,
                                 help="Minimum size of instance after denoising projected features to keep it (Default: 5)")
             parser.add_argument("--threshold-pixelSize", type=int, default=25,
@@ -83,21 +81,21 @@ def parse_args():
                                 help="Threshold of geometric similarity for SEEM feature (Default: 0.4)")
             parser.add_argument("--threshold-bbox", type=float, default=0.6,
                                 help="Threshold of bbox iou (Default: 0.4)")
-            parser.add_argument("--threshold-semSim-post", type=float, default=0.8,
+            parser.add_argument("--threshold-semSim-post", type=float, default=0.85,
                                 help="Threshold of semantic similarity for SEEM feature (Default: 0.85)")
             parser.add_argument("--threshold-geoSim-post", type=float, default=0.4,
                                 help="Threshold of geometric similarity for SEEM feature (Default: 0.4)")
-            parser.add_argument("--threshold-pixelSize-post", type=int, default=100,
+            parser.add_argument("--threshold-pixelSize-post", type=int, default=25,
                                 help="Threshold of pixel size for SEEM feature (Default: 100)")
             parser.add_argument("--no-postprocessing", action="store_false",
                                 help="Do not apply postprocessing to the SEEM feature map")
             parser.add_argument("--max-height", type=float, default=0.5,
                                 help="Maximum height of the instance [m] (Default: 0.5)")
-            parser.add_argument("--using-size", action="store_true",
+            parser.add_argument("--not-using-size", action="store_false",
                                 help="Use size information for SEEM feature")
         
     elif args.vlm == "lseg":
-        parser.add_argument('--lseg-ckpt', type=str, default=os.path.join(os.getcwd(),"lseg/ckpt/demo_e200.ckpt"))
+        parser.add_argument('--lseg-ckpt', type=str, default=os.path.join(os.getcwd(),"map/lseg/ckpt/demo_e200.ckpt"))
         parser.add_argument('--crop-size', type=int, default=480)
         parser.add_argument('--base-size', type=int, default=520)
         parser.add_argument('--lang', type=str, default='door,chair,ground,ceiling,other')
