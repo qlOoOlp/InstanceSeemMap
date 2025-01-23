@@ -134,6 +134,9 @@ class DataManager():
     @property
     def rectification_matrix(self):
         return self._rectification_matrix
+    
+    def get_init_pose(self):
+        return poseLoader(self._poselist[0])
 
 class DataManager4Real(DataManager):
     def __init__(self, version:str, data_path:str, map_path:str, start_frame:int=0, end_frame:int=-1):
@@ -165,7 +168,6 @@ class DataManager4Real(DataManager):
         if value.shape != (3, 3):
             raise ValueError("Invalid projection matrix")
         self._projection_matrix = value
-    
     # @property
     # def rectification_matrix(self):
     #     return self.__rectification_matrix
@@ -230,7 +232,7 @@ class DataManager4gt(DataManager):
         pose = poseLoader(pose_dir)
         semantic = depthLoader(semantic_dir)
         return rgb, depth, pose, semantic
-    
+     
 
 class DataManagerRoom(DataManager):
     def __init__(self, version:str, data_path:str, map_path:str, scene_id:str, start_frame:int=0, end_frame:int=-1):
@@ -292,8 +294,8 @@ class DataManagerRoom(DataManager):
         gt_label = self.labellist[self._count]
         return rgb, depth, pose, gt_label, rgb_dir
 
-
-
+    def get_init_pose(self):
+        return poseLoader2(self._poselist[0])
 
 class DataLoader():
     def __init__(self, config:DictConfig):

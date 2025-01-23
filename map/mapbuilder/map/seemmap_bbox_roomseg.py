@@ -31,7 +31,7 @@ class SeemMap_roomseg(SeemMap):
         self.bool_seemID = self.config["using_seemID"]
         self.bool_upsample = self.config["upsample"]
         self.bool_postprocess = self.config["no_postprocessing"]
-        self.bool_size = self.config["using_size"]
+        self.bool_size = self.config["not_using_size"]
 
         self.min_size_denoising_after_projection = self.config["min_size_denoising_after_projection"]
         self.threshold_pixelSize = self.config["threshold_pixelSize"]
@@ -56,7 +56,7 @@ class SeemMap_roomseg(SeemMap):
         ####
 
 
-        b_pos, b_rot = self.datamanager.get_init_pose()
+        _, b_pos, b_rot = self.datamanager.get_init_pose()
         base_pose = np.eye(4)
         base_pose[:3, :3] = b_rot
         base_pose[:3, 3] = b_pos.reshape(-1)
@@ -130,8 +130,17 @@ class SeemMap_roomseg(SeemMap):
             else:
                 if self.seem_type=='room_seg':
                     pc, mask = depth2pc4Real(depth, inst_mat, rgb.shape[:2], min_depth=self.min_depth, max_depth=self.max_depth)
-                    pc_global = transform_pc(pc, tf)
-                    # rgb_cam_mat = get_sim_cam_mat4Real(inst_mat, rgb.shape[:2],rgb.shape[:2])
+
+                    shuffle_mask = np.zeros(pc.shape[1], dtype=bool)
+                    shuffle_mask[np.random.choice(pc.shape[1],
+                                                size=pc.shape[1] // self.config['depth_sample_rate'],
+                                                replace=False)] = True
+                    pc_mask = shuffle_mask & mask
+                    # pc_mask = mask
+                    pc_transform = tf @ self.base_transform @ self.base2cam_tf
+                    pc_global = transform_pc(pc, pc_transform)
+                    # pc_global = transform_pc(pc, tf)
+                    # # rgb_cam_mat = get_sim_cam_mat4Real(inst_mat, rgb.shape[:2],rgb.shape[:2])
                 else:
                     pc, mask = depth2pc(depth, max_depth=self.max_depth, min_depth=0.5)
 
