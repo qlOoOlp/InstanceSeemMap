@@ -51,6 +51,19 @@ class idxMap():
             self.grid = grid
             self.idx_map = np.zeros(self.grid.shape[:2])
             self.seemmap()
+        elif self.type == "floodfill" or self.type == "dbscan":
+            self.grid = grid
+            self.idx_map = np.zeros(self.grid.shape[:2])
+            self.embeddings_path = os.path.join('/'.join(grid_path.split('/')[:-1]), f"{self.type}_instance_dict_{version}.pkl")
+            with open(self.embeddings_path, 'rb') as f:
+                self.embeddings = pickle.load(f)
+            for i in range(grid.shape[0]):
+                for j in range(grid.shape[1]):
+                    if grid[i, j] != 0:
+                        self.idx_map[i, j] = self.embeddings[grid[i, j]]["category_id"]
+                    else:
+                        self.idx_map[i, j] = 0
+            self.idx_map = self.idx_map.astype(int)
         else:
             # self.grid_path = os.path.join(path,"map",f"{scene_id}_{version}",f"grid_{version}.npy")
             # self.grid1 = load_map(self.grid_path)
@@ -107,8 +120,8 @@ class idxMap():
         instance_feat = []
 
         #! here
-        self.embeddings[1]["avg_height"] = 2
-        self.embeddings[2]["avg_height"] = 1.5
+        # self.embeddings[1]["avg_height"] = 2
+        # self.embeddings[2]["avg_height"] = 1.5
         for id, val in self.embeddings.items():
             instance_feat.append(val["embedding"])
         instance_feat = np.array(instance_feat)
@@ -132,14 +145,17 @@ class idxMap():
                         self.idx_map[i,j] = self.sorted_idx_dict[key][0]
                 else:
                     #! here
-                    max_height = 50000
+                    max_height = -1# 50000
+                    # candidate_val = -2
                     for key, val in self.grid1[i,j].items():
                         # if key == 2: continue
                         candidate_height = self.embeddings[key]["avg_height"] #^ using instance average height value
                         # candidate_height = self.grid1[i,j][key][1] #^ using pixel level height value
-                        if max_height > candidate_height:
+                        # if candidate_height > 0.8: continue
+                        if max_height < candidate_height:
                             max_height = candidate_height
                             candidate_val = key
+                    # if candidate_val == -2: continue
                     self.topdown_instance_map[i,j] = candidate_val
                     self.idx_map[i,j] = self.sorted_idx_dict[candidate_val][0]
         self.topdown_instance_map = self.topdown_instance_map.astype(np.int32)

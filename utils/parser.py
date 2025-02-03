@@ -35,7 +35,7 @@ def parse_args():
                         help="Camera height from the ground [m] (Default: 1.5)")
     parser.add_argument("--max-depth", type=float, default=3,
                         help="Maximum depth value [m] (Default: 3)")
-    parser.add_argument("--min-depth", type=float, default=1,
+    parser.add_argument("--min-depth", type=float, default=0.1,
                         help="Minimum depth value [m] (Default: 0.1)")
     parser.add_argument("--start-frame", type=int, default=0,)
     parser.add_argument("--end-frame", type=int, default=-1)
@@ -78,11 +78,11 @@ def parse_args():
                                 help="Threshold of geometric similarity for SEEM feature (Default: 0.4)")
             parser.add_argument("--threshold-bbox", type=float, default=0.6,
                                 help="Threshold of bbox iou (Default: 0.4)")
-            parser.add_argument("--threshold-semSim-post", type=float, default=0.8,
+            parser.add_argument("--threshold-semSim-post", type=float, default=0.85,
                                 help="Threshold of semantic similarity for SEEM feature (Default: 0.85)")
             parser.add_argument("--threshold-geoSim-post", type=float, default=0.4,
                                 help="Threshold of geometric similarity for SEEM feature (Default: 0.4)")
-            parser.add_argument("--threshold-pixelSize-post", type=int, default=100,
+            parser.add_argument("--threshold-pixelSize-post", type=int, default=50,
                                 help="Threshold of pixel size for SEEM feature (Default: 100)")
             parser.add_argument("--no-postprocessing", action="store_false",
                                 help="Do not apply postprocessing to the SEEM feature map")
