@@ -35,7 +35,7 @@ def parse_args():
                         help="Camera height from the ground [m] (Default: 1.5)")
     parser.add_argument("--max-depth", type=float, default=3,
                         help="Maximum depth value [m] (Default: 3)")
-    parser.add_argument("--min-depth", type=float, default=1,
+    parser.add_argument("--min-depth", type=float, default=0.1,
                         help="Minimum depth value [m] (Default: 0.1)")
     parser.add_argument("--start-frame", type=int, default=0,)
     parser.add_argument("--end-frame", type=int, default=-1)

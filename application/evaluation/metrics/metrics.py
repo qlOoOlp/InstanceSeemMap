@@ -134,6 +134,9 @@ class SegmentationMetric():
         pred = self.idx_map.idx_map.copy()
         target = self.gt.copy()
         target = target.astype(np.int32)
+        print(pred.shape, target.shape)
+        if pred.shape != target.shape:
+            target = target[:pred.shape[0], :pred.shape[1]]
         assert pred.shape == target.shape
 
         self.im_pred = pred.copy()
