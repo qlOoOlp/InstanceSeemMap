@@ -32,7 +32,7 @@ class evaluation():
         if config["dataset_type"] == "mp3d":
             self.ignore_index = [0,2,17,39,40,-1]
         elif config["dataset_type"] == "replica":
-            self.ignore_index = [0,40]#,31#,102]#[0,31,37,40,93,94,95,97]#[0,31,40]
+            self.ignore_index = [0,40]#,31,102]#[0,31,37,40,93,94,95,97,102] #[0,40,31,102]
         self.load_vlm()
         self.load_cat()
         self.set_path()

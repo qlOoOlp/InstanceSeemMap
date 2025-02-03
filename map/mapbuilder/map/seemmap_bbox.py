@@ -111,7 +111,6 @@ class SeemMap_bbox(SeemMap):
 
 
             if self.data_type == "rtabmap":
-                +
                 pc, mask = depth2pc4Real(depth, self.datamanager.projection_matrix, rgb.shape[:2], min_depth=self.min_depth, max_depth=self.max_depth)
 
                 shuffle_mask = np.zeros(pc.shape[1], dtype=bool)
