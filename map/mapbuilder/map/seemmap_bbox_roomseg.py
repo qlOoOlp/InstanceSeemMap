@@ -55,8 +55,10 @@ class SeemMap_roomseg(SeemMap):
         clip_model.eval()
         ####
 
-
-        _, b_pos, b_rot = self.datamanager.get_init_pose()
+        if self.seem_type=='room_seg':
+            _, b_pos, b_rot = self.datamanager.get_init_pose()
+        else:
+            b_pos, b_rot = self.datamanager.get_init_pose()
         base_pose = np.eye(4)
         base_pose[:3, :3] = b_rot
         base_pose[:3, 3] = b_pos.reshape(-1)
@@ -79,7 +81,12 @@ class SeemMap_roomseg(SeemMap):
         pbar = tqdm(range(self.datamanager.numData))
         while self.datamanager.count < self.datamanager.numData-1: # Because count is increased when data_getter is called
             # print("start")
-            rgb, depth, (inst_mat, pos, rot), gt_label, rgb_path = self.datamanager.data_getter()
+            ####################수정
+            if self.seem_type=='room_seg':
+                rgb, depth, (inst_mat, pos, rot), gt_label, rgb_path = self.datamanager.data_getter()
+            else:
+                rgb, depth, (pos, rot), gt_label, rgb_path = self.datamanager.data_getter()
+            ####################수정
             # rgb, depth, (pos,rot) = self.datamanager.data_getter()
             # if pos[1] < 0:
             #     print(f"Height is negative: {pos[1]}")
@@ -142,7 +149,7 @@ class SeemMap_roomseg(SeemMap):
                     # pc_global = transform_pc(pc, tf)
                     # # rgb_cam_mat = get_sim_cam_mat4Real(inst_mat, rgb.shape[:2],rgb.shape[:2])
                 else:
-                    pc, mask = depth2pc(depth, max_depth=self.max_depth, min_depth=0.5)
+                    pc, mask = depth2pc(depth, max_depth=self.max_depth, min_depth=self.min_depth)
 
                     shuffle_mask = np.zeros(pc.shape[1], dtype=bool)
                     shuffle_mask[np.random.choice(pc.shape[1],
@@ -183,7 +190,7 @@ class SeemMap_roomseg(SeemMap):
                     new_i = int(i * h_ratio)
                     new_j = int(j * w_ratio)
                     pp = pc_global[:,new_i*depth_shape[1]+new_j]
-                    if pp[2] >1e-4 and pp[2] < 2:
+                    if pp[2] >0 and pp[2] < self.max_height:
                         x,y = pos2grid_id(self.gs,self.cs,pp[0],pp[1])
                         feat_map[y,x] = pp[2]
                         feat_map_bool[y,x]=True
@@ -278,6 +285,7 @@ class SeemMap_roomseg(SeemMap):
             self.frame_mask_dict[self.datamanager.count] = frame_mask
             pbar.update(1)
         pbar.close()
+        
         if self.bool_postprocess: self.postprocessing2()
 
 
@@ -299,18 +307,21 @@ class SeemMap_roomseg(SeemMap):
                 h = pp[2]
                 
                 x,y = pos2grid_id(self.gs,self.cs,pp[0],pp[1])
+
+                if h>0 and h<3: 
+                    self.clip_grid[y, x] = (self.clip_grid[y, x] * self.weight[y, x] + clip_features) / (self.weight[y, x] + 1)
+                    self.gt[y, x] = gt_label
+                    # self.obstacles[y,x]=1     # obs 설정1.
                 self.scene_mask[y,x] = 1
-                if h > 2: continue #self.max_height: continue
+                if h >self.max_height: continue
                 if h > self.color_top_down_height[y,x]:
                     # print(h)
                     self.color_top_down[y,x] = rgb[i,j,:]
                     self.color_top_down_height[y,x] = h
                 if h < 1e-4 : continue# self.camera_height:continue
-                self.obstacles[y,x]=1
                 
-                self.clip_grid[y, x] = (self.clip_grid[y, x] * self.weight[y, x] + clip_features) / (self.weight[y, x] + 1)
+                self.obstacles[y,x]=1           # obs 설정2.
                 self.weight[y, x] += 1
-                self.gt[y, x] = gt_label
 
 
     def denoising(self, mask:NDArray, min_size:int =5) -> NDArray:
@@ -633,15 +644,18 @@ class SeemMap_roomseg(SeemMap):
     
     def save_map(self):
         if self.bool_submap:
+            # self.datamanager.save_map(
+            #                         obstacles=self.obstacles,
+            #                         )
             self.datamanager.save_map(color_top_down=self.color_top_down,
-                                    grid=self.grid,
-                                    obstacles=self.obstacles,
-                                    weight=self.weight,
-                                    instance_dict=self.instance_dict,
-                                    frame_mask_dict=self.frame_mask_dict,
-                                    clip_grid=self.clip_grid,
-                                    gt=self.gt,
-                                    scene_mask=self.scene_mask)
+                        grid=self.grid,
+                        obstacles=self.obstacles,
+                        weight=self.weight,
+                        instance_dict=self.instance_dict,
+                        frame_mask_dict=self.frame_mask_dict,
+                        clip_grid=self.clip_grid,
+                        gt=self.gt,
+                        scene_mask=self.scene_mask)
         else:
             self.datamanager.save_map(grid=self.grid,
                                     instance_dict=self.instance_dict,

@@ -40,8 +40,8 @@ def parse_args():
     parser.add_argument("--start-frame", type=int, default=0,)
     parser.add_argument("--end-frame", type=int, default=-1)
 
-    
-    # args = parser.parse_args()
+    parser.add_argument("--skip-frames", type=int, default=1)
+
 
 
     args, remaining_args = parser.parse_known_args()
@@ -56,13 +56,13 @@ def parse_args():
         parser.add_argument("--threshold-confidence", type=float, default=0.9,
                             help="Threshold of confidence score for SEEM (Default: 0.5)")
         parser.add_argument("--seem-type", type=str, default="base",
-                            choices=["base","obstacle","tracking","bbox","dbscan","floodfill", "room_seg"],
+                            choices=["base","obstacle","tracking","bbox","dbscan","floodfill", "room_seg", "room_seg2"],
                             help="Type of SEEM to use (Default: base)")
         parser.add_argument("--downsampling-ratio",type=float, default=1,
                             help="Downsampling ratio for SEEM input RGB image (Default: 1)")
         args, remaining_args = parser.parse_known_args(remaining_args)
         if args.seem_type != "base":
-            if args.seem_type=='room_seg':
+            if 'room_seg' in args.seem_type:
                 parser.add_argument('--clip-version', type=str, default='ViT-B/32', choices=['ViT-B/16', 'ViT-B/32', 'RN101'])
 
             parser.add_argument("--no-submap", action="store_false",
@@ -89,8 +89,8 @@ def parse_args():
                                 help="Threshold of pixel size for SEEM feature (Default: 100)")
             parser.add_argument("--no-postprocessing", action="store_false",
                                 help="Do not apply postprocessing to the SEEM feature map")
-            parser.add_argument("--max-height", type=float, default=0.5,
-                                help="Maximum height of the instance [m] (Default: 0.5)")
+            parser.add_argument("--max-height", type=float, default=3,
+                                help="Maximum height of the instance [m] (Default: 3)")
             parser.add_argument("--not-using-size", action="store_false",
                                 help="Use size information for SEEM feature")
         
@@ -125,18 +125,24 @@ def save_args(args):
         data_path = os.path.join(args.root_path, args.data_type)
 
     ################ 수정1.
-    if args.seem_type=='room_seg':
+    if 'room_seg' in args.seem_type:
         data_path = args.root_path
 
     args.img_save_dir = os.path.join(data_path, args.scene_id)
     if not os.path.exists(args.img_save_dir):
         FileNotFoundError(f"Invalid scene ID: {args.scene_id}")
-    if args.seem_type!='room_seg':
+    if 'room_seg' not in args.seem_type:
         param_save_dir = os.path.join(args.img_save_dir, 'map')
     else:
-        args.data_path = os.path.join(args.img_save_dir, args.seem_type, args.scene_id)
-        param_save_dir = os.path.join(args.data_path, 'map')
-        args.map_path = param_save_dir
+        if args.seem_type=='room_seg':
+            args.data_path = os.path.join(args.img_save_dir, args.seem_type, args.scene_id)
+            param_save_dir = os.path.join(args.data_path, 'map')
+            args.map_path = param_save_dir
+        else:
+            args.data_path = data_path
+            param_save_dir = os.path.join(args.data_path, args.scene_id, 'map')
+            args.map_path = param_save_dir
+
     ################
 
     param_save_dir = os.path.join(param_save_dir, f'{args.scene_id}_{args.version}')

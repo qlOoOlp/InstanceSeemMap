@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import os
 from abc import ABC, abstractmethod
-from map.mapbuilder.utils.datamanager import DataManager, DataManager4Real, DataManager4gt, DataManagerRoom
+from map.mapbuilder.utils.datamanager import DataManager, DataManager4Real, DataManager4gt, DataManagerRoom, DataManagerRoom2
 from omegaconf import DictConfig
 
 
@@ -19,8 +19,11 @@ class Map(ABC):
         self.scene_id = self.config["scene_id"]
 
         if self.data_type == "habitat_sim":# and self.config["dataset_type"] != "mp3d":
-            if self.seem_type=='room_seg':
-                self.data_path = self.config['data_path']
+            if 'room_seg' in self.seem_type:
+                if self.seem_type == 'room_seg':
+                    self.data_path = self.config['data_path']
+                else:
+                    self.data_path = os.path.join(self.config['data_path'],self.config['scene_id'])
             else:
                 self.data_path = os.path.join(self.root_path, f"{self.data_type}/{self.config['dataset_type']}/{self.config['scene_id']}")
         else: self.data_path = os.path.join(self.root_path, f"{self.data_type}/{self.config['scene_id']}") 
@@ -32,14 +35,20 @@ class Map(ABC):
                 self.datamanager = DataManager4Real(version=self.config["version"], data_path=self.data_path, map_path=self.map_path,start_frame=self.start_frame,end_frame=self.end_frame)
             else: 
                 #######################################수정2.
-                if self.seem_type =='room_seg':
+                if 'room_seg' in self.seem_type:
                     print(f"seet_type 은 roomseg, data_path 는 {self.data_path}")
                     print(f"map path 는 {self.map_path}")
-                    # print(f"self.config는 {self.config['map_path']}")
-                    self.datamanager = DataManagerRoom(version=self.config["version"], data_path=self.data_path, map_path=self.map_path, scene_id=self.scene_id, start_frame=self.start_frame,end_frame=self.end_frame)
-                    # self.datamanager = DataManagerRoom(version=self.config["version"], data_path=self.data_path, map_path=self.config["map_path"], scene_id=self.scene_id, start_frame=self.start_frame,end_frame=self.end_frame)
+                    if self.seem_type=='room_seg':
+                        # print(f"self.config는 {self.config['map_path']}")
+                        self.datamanager = DataManagerRoom(version=self.config["version"], data_path=self.data_path, map_path=self.map_path, scene_id=self.scene_id, start_frame=self.start_frame,end_frame=self.end_frame)
+                        # self.datamanager = DataManagerRoom(version=self.config["version"], data_path=self.data_path, map_path=self.map_path, scene_id=self.scene_id, start_frame=self.start_frame,end_frame=self.end_frame, skip_frames=self.config["skip_frames"])
+                        # self.datamanager = DataManagerRoom(version=self.config["version"], data_path=self.data_path, map_path=self.config["map_path"], scene_id=self.scene_id, start_frame=self.start_frame,end_frame=self.end_frame)
+                    else:
+                        self.datamanager = DataManagerRoom2(version=self.config["version"], data_path=self.data_path, map_path=self.map_path, scene_id=self.scene_id, start_frame=self.start_frame,end_frame=self.end_frame)
                 else:
                     self.datamanager = DataManager(version=self.config["version"], data_path=self.data_path, map_path=self.map_path,start_frame=self.start_frame,end_frame=self.end_frame)
+                # else: 
+                #     self.datamanager = DataManager(version=self.config["version"], data_path=self.data_path, map_path=self.map_path,start_frame=self.start_frame,end_frame=self.end_frame, skip_frames=self.config["skip_frames"])
                 #######################################수정2.
             
 

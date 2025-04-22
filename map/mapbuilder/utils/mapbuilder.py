@@ -40,7 +40,7 @@ class MapBuilder():
             elif self.conf["seem_type"]=="dbscan" : self.map = SeemMap_dbscan(self.conf)
             elif self.conf["seem_type"]=="floodfill" : self.map = SeemMap_floodfill(self.conf)
             elif self.conf["seem_type"]=="obstacle": self.map = ObstacleMap(self.conf)
-            elif self.conf["seem_type"]=="room_seg": self.map = SeemMap_roomseg(self.conf)
+            elif "room_seg" in self.conf["seem_type"]: self.map = SeemMap_roomseg(self.conf)
     def buildmap(self):
         print("#"*100)
         self.map.start_map()
@@ -62,6 +62,8 @@ class IndexMapBuilder():
         self.wall_mask = np.zeros((self.dataloader.grid_map.shape[0],self.dataloader.grid_map.shape[1]), dtype=bool)
         self.window_mask = np.zeros((self.dataloader.grid_map.shape[0],self.dataloader.grid_map.shape[1]), dtype=bool)
         self.door_mask = np.zeros((self.dataloader.grid_map.shape[0],self.dataloader.grid_map.shape[1]), dtype=bool)
+        self.window_mask = np.zeros((self.dataloader.grid_map.shape[0],self.dataloader.grid_map.shape[1]), dtype=bool)
+        self.others_mask = np.zeros((self.dataloader.grid_map.shape[0],self.dataloader.grid_map.shape[1]), dtype=bool)
         for i in range(self.dataloader.grid_map.shape[0]):
             for j in range(self.dataloader.grid_map.shape[1]): 
                 if 1 in self.dataloader.grid_map[i,j]:
@@ -79,22 +81,32 @@ class IndexMapBuilder():
 
         windows = []
         doors = []
+        others=[]
 
-        for id, val in self.embeddings.items():
+        id2idx={}
+        import copy
+        new_instance_dict = copy.deepcopy(self.dataloader.instance_dict)
+        for idx, (id, val) in enumerate(self.dataloader.instance_dict.items()):
+            id2idx[id]=idx
             instance_feat.append(val["embedding"])
         instance_feat = np.array(instance_feat)
         self.matching_cos = instance_feat @ text_feats.T
-        for id in self.embeddings.keys():
-            cos_list = self.matching_cos[list(self.embeddings.keys()).index(id)]
+        for id in self.dataloader.instance_dict.keys():
+            cos_list = self.matching_cos[list(self.dataloader.instance_dict.keys()).index(id)]
             cos_list2 = np.argsort(cos_list)[::-1]
             if np.max(cos_list) == 0: # ours는 instance마다 진행하니 아무것도 할당 안돼 0벡터 갖는 경우가 없어 이 처리 과정이 불필요하긴함
                 swit = np.where(cos_list2 == 0)[0][0]
                 cos_list2[swit] = cos_list2[0]
                 cos_list2[0]=0
-            if "window" in cos_list2[0]:
+            if "window" in self.categories[cos_list2[0]]:
                 windows.append(id)
-            if "door" in cos_list2[0]:
+            if "door" in self.categories[cos_list2[0]]:
                 doors.append(id)
+            new_instance_dict[id]["categories"]=cos_list2
+            new_instance_dict[id]["category"]=self.categories[cos_list2[0]]
+            for cat in ["picture","cabinet","shelving","curtain","mirror","blinds"]: 
+                if cat in self.categories[cos_list2[0]]:
+                    others.append(id)
         for i in range(self.dataloader.grid_map.shape[0]):
             for j in range(self.dataloader.grid_map.shape[1]):
                 if len(self.dataloader.grid_map[i,j].keys()) == 0 : continue
@@ -103,7 +115,9 @@ class IndexMapBuilder():
                         self.window_mask[i,j] = 1
                     if key in doors:
                         self.door_mask[i,j] = 1
-
+                    if key in others:
+                        self.others_mask[i,j] = 1
+        self.dataloader.save_map(inst_category=new_instance_dict)
         obstacles_pil = Image.fromarray(self.wall_mask[self.xmin:self.xmax+1, self.ymin:self.ymax+1])
         plt.figure(figsize=(8,6), dpi=120)
         plt.imshow(obstacles_pil, cmap='gray')
@@ -111,6 +125,7 @@ class IndexMapBuilder():
         self.dataloader.save_map(wall_mask=self.wall_mask)
         self.dataloader.save_map(window_mask=self.window_mask)
         self.dataloader.save_map(door_mask=self.door_mask)
+        self.dataloader.save_map(others_mask=self.others_mask)
 
 
 

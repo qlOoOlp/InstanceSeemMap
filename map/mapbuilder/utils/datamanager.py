@@ -65,6 +65,7 @@ class DataManager():
         self._count = -1
         print(f"Data loaded: {self._numData} data")
 
+
     def load_map(self, *args)->Dict[str, Union[dict,NDArray]]:
         result = []
         for path in args:
@@ -137,6 +138,131 @@ class DataManager():
     
     def get_init_pose(self):
         return poseLoader(self._poselist[0])
+    
+# class DataManager():
+#     def __init__(self, version:str, data_path:str, map_path:str, start_frame:int=0, end_frame:int=-1, skip_frames=1):
+#         self._start_frame = start_frame
+#         self._end_frame = end_frame
+#         self._skip_frames = skip_frames
+#         self._data_path = data_path
+#         self._rgb_path = self._data_path + '/rgb'
+#         self._depth_path = self._data_path + '/depth'
+#         self._pose_path = self._data_path + '/pose'
+#         self._map_path = map_path
+#         self._version = version
+#         if not isinstance(self, DataManager4gt):
+#             self._load_data()
+#         # create map path if not exists (if exists, do nothing)
+#         os.makedirs(self._map_path, exist_ok=True)
+ 
+#         self._rectification_matrix = np.eye(3)
+#         self._rectification_matrix[1,1] = -1
+#         self._rectification_matrix[2,2] = -1
+ 
+#     def _load_data(self)->None:
+#         self.check_path(self._data_path, self._rgb_path, self._depth_path, self._pose_path)
+ 
+#         self._rgblist = sorted(os.listdir(self._rgb_path), key=lambda x: int(
+#             x.split("_")[-1].split(".")[0]))
+ 
+#         self._depthlist = sorted(os.listdir(self._depth_path), key=lambda x: int(
+#             x.split("_")[-1].split(".")[0]))
+#         self._depthlist = [os.path.join(self._depth_path, x) for x in self._depthlist]
+ 
+#         self._poselist = sorted(os.listdir(self._pose_path), key=lambda x: int(
+#             x.split("_")[-1].split(".")[0]))
+#         self._poselist = [os.path.join(self._pose_path, x) for x in self._poselist]
+#         # check data length mismatch
+ 
+#         if self._end_frame == -1:
+#             self._rgblist = [os.path.join(self._rgb_path, x) for x in self._rgblist[self._start_frame::self._skip_frames]]
+#             self._depthlist = [os.path.join(self._depth_path, x) for x in self._depthlist[self._start_frame::self._skip_frames]]
+#             self._poselist = [os.path.join(self._pose_path, x) for x in self._poselist[self._start_frame::self._skip_frames]]
+#         else:
+#             self._rgblist = [os.path.join(self._rgb_path, x) for x in self._rgblist[self._start_frame:self._end_frame+1:self._skip_frames]]
+#             self._depthlist = [os.path.join(self._depth_path, x) for x in self._depthlist[self._start_frame:self._end_frame+1:self._skip_frames]]
+#             self._poselist = [os.path.join(self._pose_path, x) for x in self._poselist[self._start_frame:self._end_frame+1:self._skip_frames]]
+        
+#         if not len(self._rgblist) == len(self._depthlist) == len(self._poselist):
+#             print(len(self._rgblist), len(self._depthlist), len(self._poselist))
+#             raise ValueError("Data length mismatch")
+
+#         self._numData = len(self._rgblist)
+#         self._count = -1
+#         print(f"Data loaded: {self._numData} data")
+
+    # def load_map(self, *args)->Dict[str, Union[dict,NDArray]]:
+    #     result = []
+    #     for path in args:
+    #         try:
+    #             with open(path, 'rb') as f:
+    #                 temp = np.load(f, allow_pickle=True)
+    #             result.append[temp]
+    #         except:
+    #             try:
+    #                 with open(path, 'rb') as f:
+    #                     temp = pickle.load(f)
+    #                 result.append[temp]
+    #             except: raise ValueError("Invalid map path")
+    #     return result
+    
+    
+    # def save_map(self, **kwargs)->None:
+    #     # if self.config['seem_type']=='room_seg':
+    #     print(f"저장위치는.. {self._map_path}")
+    #     for key, value in kwargs.items():
+    #         if type(value) == type({1:1}):
+    #             map_save_path = os.path.join(self._map_path, f"{key}_{self._version}.pkl")
+    #             with open(map_save_path, 'wb') as f:
+    #                 pickle.dump(value, f)
+    #             continue
+    #         map_save_path = os.path.join(self._map_path, f"{key}_{self._version}.npy")
+    #         np.save(map_save_path, value, allow_pickle=True)
+
+    # def data_getter(self)->Tuple[NDArray,NDArray,Tuple[NDArray,NDArray]]:
+    #     self._count += 1
+    #     if self._count >= self._numData:
+    #         raise ValueError("Data out of range")
+    #     rgb_dir = self._rgblist[self._count]
+    #     depth_dir = self._depthlist[self._count]
+    #     pose_dir = self._poselist[self._count]
+    #     rgb = rgbLoader(rgb_dir)
+    #     depth = depthLoader(depth_dir)
+    #     pose = poseLoader(pose_dir)
+    #     return rgb, depth, pose
+
+    # def check_path(self, *args)->None:
+    #     for path in args:
+    #         if not os.path.exists(path):
+    #             raise FileNotFoundError(f"Invalid path: {path}")
+            
+    # def get_data_shape(self):
+    #     rgb = rgbLoader(self._rgblist[0])
+    #     depth = depthLoader(self._depthlist[0])
+    #     return rgb.shape, depth.shape
+
+    # def managing_temp(self, type: int, **kwargs):
+    #     if type == 0: # set temp path
+    #         return os.path.join(kwargs["temp_dir"], kwargs["temp_name"])
+    #     elif type == 1 : # save temp
+    #         np.save(kwargs["instance_save_path"], kwargs["instance"])
+    #     else: # type == 2, load temp
+    #         return np.load(kwargs["instance_save_path"])
+
+    # @property
+    # def numData(self):
+    #     return self._numData
+
+    # @property
+    # def count(self):
+    #     return self._count
+
+    # @property
+    # def rectification_matrix(self):
+    #     return self._rectification_matrix
+    
+    # def get_init_pose(self):
+    #     return poseLoader(self._poselist[0])
 
 class DataManager4Real(DataManager):
     def __init__(self, version:str, data_path:str, map_path:str, start_frame:int=0, end_frame:int=-1):
@@ -296,14 +422,75 @@ class DataManagerRoom(DataManager):
 
     def get_init_pose(self):
         return poseLoader2(self._poselist[0])
+    
+class DataManagerRoom2(DataManager):
+    def __init__(self, version:str, data_path:str, map_path:str, scene_id:str, start_frame:int=0, end_frame:int=-1):
+        super().__init__(version, data_path, map_path, start_frame, end_frame)
+        print(f"data {self._data_path}")
+        self.label_path = os.path.join(self._data_path, f'{scene_id}_single_label.txt')
+        self.check_path(self.label_path)
+        self.load_data()
+
+    def load_data(self)->None:
+        self.rgblist = sorted(os.listdir(self._rgb_path), key=lambda x: int(
+            x.split("_")[-1].split(".")[0]))
+
+        self.depthlist = sorted(os.listdir(self._depth_path), key=lambda x: int(
+            x.split("_")[-1].split(".")[0]))
+        self.depthlist = [os.path.join(self._depth_path, x) for x in self.depthlist]
+
+        self.poselist = sorted(os.listdir(self._pose_path), key=lambda x: int(
+            x.split("_")[-1].split(".")[0]))
+        self.poselist = [os.path.join(self._pose_path, x) for x in self.poselist]
+        # check data length mismatch
+        if self._end_frame == -1:
+            self.rgblist = [os.path.join(self._rgb_path, x) for x in self.rgblist][self._start_frame:]
+            self.depthlist = [os.path.join(self._depth_path, x) for x in self.depthlist][self._start_frame:]
+            self.poselist = [os.path.join(self._pose_path, x) for x in self.poselist][self._start_frame:]
+        else:
+            self.rgblist = [os.path.join(self._rgb_path, x) for x in self.rgblist][self._start_frame:self._end_frame+1]
+            self.depthlist = [os.path.join(self._depth_path, x) for x in self.depthlist][self._start_frame:self._end_frame+1]
+            self.poselist = [os.path.join(self._pose_path, x) for x in self.poselist][self._start_frame:self._end_frame+1]
+        
+        print(self.label_path)
+        with open(self.label_path, "r") as label_txt:
+            self.labellist = [int(label_context.strip()) for label_context in label_txt]
+ 
+        if not len(self.rgblist) == len(self.depthlist) == len(self.poselist):
+            print(len(self.rgblist), len(self.depthlist), len(self.poselist))
+            raise ValueError("Data length mismatch")
+
+        print(f"rgblist 는 {self.rgblist}")
+
+        self._numData = len(self.rgblist)
+        self._count = -1
+        print(f"Data loaded: {self._numData} data")   
+
+    def data_getter(self)->Tuple[NDArray,NDArray,Tuple[NDArray,NDArray]]:
+        self._count += 1
+        if self._count >= self._numData:
+            raise ValueError("Data out of range")
+        rgb_dir = self._rgblist[self._count]
+        depth_dir = self._depthlist[self._count]
+        pose_dir = self._poselist[self._count]
+        rgb = rgbLoader(rgb_dir)
+        depth = depthLoader(depth_dir)
+        pose = poseLoader(pose_dir)
+        gt_label = self.labellist[self._count]
+
+        return rgb, depth, pose, gt_label, rgb_dir
 
 class DataLoader():
     def __init__(self, config:DictConfig):
         self.config = config
-        if self.config['seem_type']=='room_seg':
-            print(f"저장위치는.. {self.config['root_path']}")
-            self.map_dir = os.path.join(self.config["root_path"], self.config['scene_id'], self.config['seem_type'], self.config['scene_id'], 'map')
-            self._map_path = os.path.join(self.map_dir, f"{self.config['scene_id']}_{self.config['version']}")
+        if 'room_seg' in self.config['seem_type']:
+            if self.config['seem_type']=='rooms_seg':
+                print(f"저장위치는.. {self.config['root_path']}")
+                self.map_dir = os.path.join(self.config["root_path"], self.config['scene_id'], self.config['seem_type'], self.config['scene_id'], 'map')
+                self._map_path = os.path.join(self.map_dir, f"{self.config['scene_id']}_{self.config['version']}")
+            else:
+                self.map_dir = os.path.join(self.config["root_path"], self.config['scene_id'], 'map')
+                self._map_path = os.path.join(self.map_dir, f"{self.config['scene_id']}_{self.config['version']}")
         else:
             self.data_path = os.path.join(self.config["root_path"], f"{self.config['data_type']}/{self.config['dataset_type']}/{self.config['scene_id']}")
             self._map_path = os.path.join(self.data_path, f"map/{self.config['scene_id']}_{self.config['version']}")
