@@ -1,10 +1,9 @@
-#%%
 import os
 import cv2
 import numpy as np
 from PIL import Image
 import matplotlib.pyplot as plt
-#%%
+
 class RoomSegProcessor:
     def __init__(self, root_dir, scene_id, version, save_dir):
         self.root_dir = root_dir
@@ -99,8 +98,6 @@ class RoomSegmentation:
         return new_image, padding_info
 
     def run(self):
-
-        # Step1. 정사각형으로 맞춰주는 작업
         self.img, padding_info = self.convert_to_sqr(self.img)
         # self.img = cv2.bitwise_not(self.img)
         print(f"{np.unique(self.img)}")
