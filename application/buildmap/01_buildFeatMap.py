@@ -1,5 +1,3 @@
-#%%
-#! gt맵 만드는 옵션 추가해야됨
 import os
 import sys
 from map.mapbuilder.utils.mapbuilder import MapBuilder
@@ -14,4 +12,3 @@ def main():
 
 if __name__=="__main__":
     main()
-# %%

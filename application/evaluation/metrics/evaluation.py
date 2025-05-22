@@ -130,10 +130,10 @@ class evaluation():
                 })
                 if self.vlm == "ours":
                     result_data[-1]["num_embeddings"] = len(index_map.embeddings.keys())
+                    print(f"# of embeddings: {len(index_map.embeddings.keys())}")
                 if not self.bool_save:
                     print(scene_id, pacc, mpacc, miou, fwmiou, top_k_auc, top_k_auc_mpacc, top_k_auc_fwmpacc, sep="//////")
                     print(hovsg_results[0], hovsg_results[1], hovsg_results[3], hovsg_results[4], sep="//////")
-                    print(f"# of embeddings: {len(index_map.embeddings.keys())}")
             else:
                 pacc, mpacc, miou, fwmiou, hovsg_results = segmet.cal_ori()
                 result_data.append({

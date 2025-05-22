@@ -25,6 +25,7 @@ class visualizer():
         self.visualize_obstacles()
         for target in self.target_map:
             if target == "obstacles":
+                self.visualize_obstacles()
                 continue
             if target == "rgb":
                 self.visualize_rgb()
@@ -32,7 +33,9 @@ class visualizer():
             if target == "map":
                 self.visualize_map()
                 continue
-
+            if target == "heatmap":
+                self.visualize_heatmap()
+                continue
 
     def visualize_obstacles(self):
         obstacles_path = os.path.join(self.target_dir, f"obstacles_{self.version}.npy")
@@ -98,11 +101,12 @@ class visualizer():
     
     def visualize_map(self):
         map_path = os.path.join(self.target_dir, f"grid_{self.version}.npy")
-
+        #! 그 3D 형태로 2d mask들이 쌓인 느낌? 이거 그 인스턴스마다 높이값 일정하게 저장되어있으니 활용하면 될듯?
         raise NotImplementedError
-
-        if "instance" in self.target_map:
-            self.visualize_instance()
     
     def visualize_instance(self):
+        raise NotImplementedError
+    
+
+    def visualize_heatmap(self):
         raise NotImplementedError

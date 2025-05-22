@@ -727,17 +727,25 @@ def transform_pc(pc, pose):
 
 
 
-def depth2pc(depth, fov=90, intr_mat=None, min_depth=0.1, max_depth=4):#10):
+def depth2pc(depth, fov=90, intr_mat=None, min_depth=0.1, max_depth=4, depth_scale=1):#10):
     """
     Return 3xN array and the mask of valid points in [min_depth, max_depth]
     """
+    depth = depth / depth_scale #!#!#!#!
 
     h, w = depth.shape
 
     cam_mat = intr_mat
     if intr_mat is None:
         cam_mat = get_sim_cam_mat_with_fov(h, w, fov)
+
+
+
+
+
+
     # cam_mat[:2, 2] = 0
+    # print(cam_mat)
     cam_mat_inv = np.linalg.inv(cam_mat)
 
     y, x = np.meshgrid(np.arange(h), np.arange(w), indexing="ij")

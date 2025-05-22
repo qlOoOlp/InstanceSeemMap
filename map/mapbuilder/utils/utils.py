@@ -22,6 +22,13 @@ def poseLoader(path):
         rot = r.as_matrix()
         return pos, rot
     
+def poseLoader_mat(path):
+    with open(path, "r") as f:
+        line = f.readline()
+        row = [float(x) for x in line.split()]
+        pose = np.array(row, dtype=float).reshape((4, 4))
+        return pose
+
 def depthLoader2(path):
     raise NotImplementedError
 

@@ -1,14 +1,14 @@
-data_path: "/nvme0n1/hong/VLMAPS/InstanceSeemMap/Data"
+data_path: "/home/vlmap_RCI/Data"
 data_type: "habitat_sim"
 dataset_type : "mp3d" # "replica" 
 vlm: "ours" # "lseg" "seem" "ours"
-version: "region_wall" #"0115optimized2" #"b1209_ps50aft_s" # "lseg" "seem"
+version: "skipframes2_005" #"tb0025_ps50" #"0115optimized2" #"b1209_ps50aft_s" # "lseg" "seem"
 scene_ids:
-  # - 1LXtFkjw3qL_1_none
+  - 1LXtFkjw3qL_1_none
   - 2t7WUuJeko7_2
-  # - 5LpN3gDmAk7_4
+  - 5LpN3gDmAk7_4
   # - gTV8FGcVJC9_2
-  # - UwV83HsGsw3_1
+  - UwV83HsGsw3_1
   # - apartment_0_1
   # - apartment_1_4
   # - apartment_2_2
@@ -18,6 +18,6 @@ scene_ids:
   # - office_4_1
   # - room_0_1
   # - room_1_1
-gt_version: "gt2" #005" #005"
-visualize: true
-bool_save: false
+gt_version: "gt005" #005" #005"
+visualize: false
+bool_save: true

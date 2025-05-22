@@ -8,19 +8,21 @@ import pickle
 import json
 from omegaconf import OmegaConf, DictConfig
 
-from map.mapbuilder.utils.utils import rgbLoader, depthLoader, poseLoader, depthLoader2, poseLoader2
+from map.mapbuilder.utils.utils import rgbLoader, depthLoader, poseLoader, poseLoader_mat, depthLoader2, poseLoader2
 # from typing import
 
 class DataManager():
-    def __init__(self, version:str, data_path:str, map_path:str, start_frame:int=0, end_frame:int=-1):
+    def __init__(self, version:str, data_path:str, map_path:str, start_frame:int=0, end_frame:int=-1, skip_frames:int=1, pose_type:str="pose"):
         self._start_frame = start_frame
         self._end_frame = end_frame
+        self._skip_frames = skip_frames
         self._data_path = data_path
         self._rgb_path = self._data_path + '/rgb'
         self._depth_path = self._data_path + '/depth'
         self._pose_path = self._data_path + '/pose'
         self._map_path = map_path
         self._version = version
+        self._pose_type = pose_type
         if not isinstance(self, DataManager4gt):
             self._load_data()
         # create map path if not exists (if exists, do nothing)
@@ -44,14 +46,16 @@ class DataManager():
             x.split("_")[-1].split(".")[0]))
         self._poselist = [os.path.join(self._pose_path, x) for x in self._poselist]
         # check data length mismatch
+
         if self._end_frame == -1:
-            self._rgblist = [os.path.join(self._rgb_path, x) for x in self._rgblist][self._start_frame:]
-            self._depthlist = [os.path.join(self._depth_path, x) for x in self._depthlist][self._start_frame:]
-            self._poselist = [os.path.join(self._pose_path, x) for x in self._poselist][self._start_frame:]
+            self._rgblist = [os.path.join(self._rgb_path, x) for x in self._rgblist[self._start_frame::self._skip_frames]]
+            self._depthlist = [os.path.join(self._depth_path, x) for x in self._depthlist[self._start_frame::self._skip_frames]]
+            self._poselist = [os.path.join(self._pose_path, x) for x in self._poselist[self._start_frame::self._skip_frames]]
         else:
-            self._rgblist = [os.path.join(self._rgb_path, x) for x in self._rgblist][self._start_frame:self._end_frame+1]
-            self._depthlist = [os.path.join(self._depth_path, x) for x in self._depthlist][self._start_frame:self._end_frame+1]
-            self._poselist = [os.path.join(self._pose_path, x) for x in self._poselist][self._start_frame:self._end_frame+1]
+            self._rgblist = [os.path.join(self._rgb_path, x) for x in self._rgblist[self._start_frame:self._end_frame+1:self._skip_frames]]
+            self._depthlist = [os.path.join(self._depth_path, x) for x in self._depthlist[self._start_frame:self._end_frame+1:self._skip_frames]]
+            self._poselist = [os.path.join(self._pose_path, x) for x in self._poselist[self._start_frame:self._end_frame+1:self._skip_frames]]
+
         
         if not len(self._rgblist) == len(self._depthlist) == len(self._poselist):
             print(len(self._rgblist), len(self._depthlist), len(self._poselist))
@@ -96,7 +100,10 @@ class DataManager():
         pose_dir = self._poselist[self._count]
         rgb = rgbLoader(rgb_dir)
         depth = depthLoader(depth_dir)
-        pose = poseLoader(pose_dir)
+        if self._pose_type == "mat":
+            pose = poseLoader_mat(pose_dir)
+        else:
+            pose = poseLoader(pose_dir)
         return rgb, depth, pose
 
     def check_path(self, *args)->None:
@@ -110,6 +117,9 @@ class DataManager():
         return rgb.shape, depth.shape
 
     def get_init_pose(self):
+        # print(self._pose_type)
+        if self._pose_type == "mat":
+            return poseLoader_mat(self._poselist[0])
         return poseLoader(self._poselist[0])
 
     def managing_temp(self, type: int, **kwargs):
@@ -132,6 +142,11 @@ class DataManager():
     def rectification_matrix(self):
         return self._rectification_matrix
         print("hello")
+    @rectification_matrix.setter
+    def rectification_matrix(self, value:NDArray):
+        if value.shape != (3, 3):
+            raise ValueError("Invalid rectification matrix")
+        self._rectification_matrix = value
 
 class DataManager4Real(DataManager):
     def __init__(self, version:str, data_path:str, map_path:str, start_frame:int=0, end_frame:int=-1):
@@ -334,11 +349,17 @@ class DataLoader():
         return result
 
     def save_map(self, **kwargs)->None:
+        data_save_dir = os.path.join(self._map_path,"walls")
+        self.check_dir(data_save_dir)
         for key, value in kwargs.items():
             if type(value) == type({1:1}):
                 map_save_path = os.path.join(self._map_path, f"{key}_{self.config['version']}.pkl")
                 with open(map_save_path, 'wb') as f:
                     pickle.dump(value, f)
                 continue
-            map_save_path = os.path.join(self._map_path, f"{key}_{self.config['version']}.npy")
+            map_save_path = os.path.join(data_save_dir, f"{key}_{self.config['version']}.npy")
             np.save(map_save_path, value, allow_pickle=True)
+
+    def check_dir(self, input_dir):
+        if not os.path.exists(input_dir):
+            os.makedirs(input_dir)

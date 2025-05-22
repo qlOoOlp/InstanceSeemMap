@@ -23,7 +23,7 @@ class Map(ABC):
         else:
             if self.data_type == "rtabmap":
                 self.datamanager = DataManager4Real(version=self.config["version"], data_path=self.data_path, map_path=self.map_path,start_frame=self.start_frame,end_frame=self.end_frame)
-            else: self.datamanager = DataManager(version=self.config["version"], data_path=self.data_path, map_path=self.map_path,start_frame=self.start_frame,end_frame=self.end_frame)
+            else: self.datamanager = DataManager(version=self.config["version"], data_path=self.data_path, map_path=self.map_path,start_frame=self.start_frame,end_frame=self.end_frame, skip_frames=self.config["skip_frames"], pose_type=self.config["pose_type"])
 
 
     @abstractmethod

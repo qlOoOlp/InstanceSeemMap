@@ -20,7 +20,7 @@ def parse_args():
     # data path
     now_root = os.getcwd()
     now_root = os.path.join(now_root, "Data")
-    parser.add_argument("--root-path", default = "/nvme0n1/hong/VLMAPS/InstanceSeemMap/Data", type=str,
+    parser.add_argument("--root-path", default = "/home/vlmap_RCI/Data/", type=str,
                         help="Root path to use")
     
 
@@ -29,7 +29,7 @@ def parse_args():
                         help="Grid map cell size [m] (Default: 0.025)")
     parser.add_argument("--gs", type=int, default=2000,
                         help="Number of cells per side of the grid map (Default: 2000)")
-    parser.add_argument("--depth-sample-rate", type=int, default=10,
+    parser.add_argument("--depth-sample-rate", type=int, default=1,
                         help="Depth image sampling rate (Default: 10)")
     parser.add_argument("--camera-height", type=float, default=1.5,
                         help="Camera height from the ground [m] (Default: 1.5)")
@@ -39,8 +39,10 @@ def parse_args():
                         help="Minimum depth value [m] (Default: 0.1)")
     parser.add_argument("--start-frame", type=int, default=0,)
     parser.add_argument("--end-frame", type=int, default=-1)
+    parser.add_argument("--skip-frames", type=int, default=1)
+    parser.add_argument('--no-rot-map', action='store_false',
+                        help='Do not rotate the result map')
 
-    
     # args = parser.parse_args()
 
 
@@ -49,14 +51,19 @@ def parse_args():
                         help="Version name to append to the output map name (e.g., grid_lseg_v1.npy)")
     if args.data_type == "habitat_sim":
         parser.add_argument("--dataset-type", type=str, default="mp3d",
-                        choices=["mp3d","replica","scannet"],help="Dataset type to use (Default: mp3d)")
+                        choices=["mp3d","replica","scannet","Replica"],help="Dataset type to use (Default: mp3d)")
+        parser.add_argument("--pose-type", type=str, default="quat",
+                            choices=["mat","quat"], help="Type of position to use (Default: quat)")
+    else:
+        parser.add_argument("--pose-type", type=str, default="mat",
+                            choices=["mat","quat"], help="Type of position to use (Default: mat)")
     if args.vlm == "seem":
         parser.add_argument("--feat-dim", type=int, default=512,
                             help="Dimension of the SEEM feature vector (Default: 512)")
         parser.add_argument("--threshold-confidence", type=float, default=0.9,
                             help="Threshold of confidence score for SEEM (Default: 0.5)")
         parser.add_argument("--seem-type", type=str, default="base",
-                            choices=["base","obstacle","tracking","bbox","dbscan","floodfill"],
+                            choices=["base","obstacle","tracking","bbox","dbscan","floodfill","bbox4hovsg"],
                             help="Type of SEEM to use (Default: base)")
         parser.add_argument("--downsampling-ratio",type=float, default=1,
                             help="Downsampling ratio for SEEM input RGB image (Default: 1)")
@@ -155,6 +162,7 @@ def parse_args_indexing_map():
                         help="Scene name to use (Default: 2t7WUuJeko7_2)")
     parser.add_argument("--version", type=str, default="seem",
                         help="Version name to append to the output map name (e.g., grid_lseg_v1.npy)")
+    parser.add_argument('--obstacle-items', nargs='+', type=str, default=["picture","cabinet","shelving","curtain","mirror","blinds"], help='List of obastacles without ["wall", "window", "door"]')
     # parser.add_argument("--visualize", action="store_true",
     #                     help="Visualize the map")
     # parser.add_argument("--save-instance-map", action="store_true",
@@ -172,7 +180,62 @@ def parse_args_indexing_map():
     # data path
     now_root = os.getcwd()
     now_root = os.path.join(now_root, "Data")
-    parser.add_argument("--root-path", default = "/nvme0n1/hong/VLMAPS/InstanceSeemMap/Data", type=str,
+    parser.add_argument("--root-path", default = "/home/vlmap_RCI/Data/", type=str,
+                        help="Root path to use")
+    args = parser.parse_args()
+    print(args)
+    return args
+
+
+
+def parse_args_roomseg():
+    parser = argparse.ArgumentParser()
+    # parser.add_argument("--vlm", default="seem", type = str, choices=["lseg","seem"],
+    #                     help="Name of the vln model to use (Default: seem)")
+    parser.add_argument("--data-type", type=str, default="habitat_sim",
+                        choices=["habitat_sim", "rtabmap"], help="Select data type to use (Default: habitat_sim)")
+    parser.add_argument("--dataset-type", type=str,default="mp3d",
+                        choices=["mp3d","replica","scannet"],help="Dataset type to use (Default: mp3d)")
+    parser.add_argument("--scene-id", type=str, default="2t7WUuJeko7_2",
+                        help="Scene name to use (Default: 2t7WUuJeko7_2)")
+    parser.add_argument("--version", type=str, default="seem",#"room_seg1_floor_prior",
+                        help="Version name to append to the output map name (e.g., grid_lseg_v1.npy)")
+    parser.add_argument("--mask-type", type=str, default='all_wall',
+                        choices=["intersection","all_wall",'wall'], help="Mask type to use (Default: all_wall)")
+    parser.add_argument("--m", type=int, default=1, 
+                        help="m value for room segmentation (Default: 1)")
+    parser.add_argument("--b", type=int, default=70, # 5
+                        help="b value for room segmentation (Default: 70)")
+    parser.add_argument("--min_dist", type=int, default=1600,
+                        help="min_dist value for room segmentation (Default: 1600)")
+    parser.add_argument("--min_l", type=int, default=100,
+                        help="min_l value for room segmentation (Default: 100)")
+    parser.add_argument("--kernel_size", type=int, default=5,
+                        help="kernel_size value for room segmentation (Default: 5)")
+    now_root = os.getcwd()
+    now_root = os.path.join(now_root, "Data")
+    parser.add_argument("--root-path", default = "/home/vlmap_RCI/Data/", type=str,
+                        help="Root path to use")
+    args = parser.parse_args()
+    print(args)
+    return args
+
+def parse_args_extract_captions():
+    parser = argparse.ArgumentParser()
+    # parser.add_argument("--vlm", default="seem", type = str, choices=["lseg","seem"],
+    #                     help="Name of the vln model to use (Default: seem)")
+    parser.add_argument("--data-type", type=str, default="habitat_sim",
+                        choices=["habitat_sim", "rtabmap"], help="Select data type to use (Default: habitat_sim)")
+    parser.add_argument("--dataset-type", type=str,default="mp3d",
+                        choices=["mp3d","replica","scannet"],help="Dataset type to use (Default: mp3d)")
+    parser.add_argument("--scene-id", type=str, default="2t7WUuJeko7_2",
+                        help="Scene name to use (Default: 2t7WUuJeko7_2)")
+    parser.add_argument("--version", type=str, default="seem",#"room_seg1_floor_prior",
+                        help="Version name to append to the output map name (e.g., grid_lseg_v1.npy)")
+    
+    now_root = os.getcwd()
+    now_root = os.path.join(now_root, "Data")
+    parser.add_argument("--root-path", default = "/home/vlmap_RCI/Data/", type=str,
                         help="Root path to use")
     args = parser.parse_args()
     print(args)

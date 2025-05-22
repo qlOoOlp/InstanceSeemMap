@@ -12,4 +12,6 @@ visualize:
   - "map"
   - "gt"
   - "instance"
+  - "heatmap"
+heatmap_type: "simscore" # simscore / category
 save_image: true

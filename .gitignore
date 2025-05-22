@@ -11,3 +11,6 @@ Data*
 dummy*
 eval_outputs/*
 eval_outputs
+
+# Ignore etc
+*.ipynb
