@@ -19,4 +19,5 @@ conda install mpi4py
 pip install -r assets/requirements/requirements.txt
 pip install -r assets/requirements/requirements_git.txt
 pip install torchshow
+conda install habitat-sim=0.2.2 -c conda-forge -c aihabitat -y
 ```

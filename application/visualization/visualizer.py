@@ -20,6 +20,7 @@ class visualizer():
         self.scene_id = config["scene_id"]
         self.version = config["version"]
         self.dataset_type = config["dataset_type"]
+        self.vlm = config["vlm"]
 
     def visualize(self):
         self.visualize_obstacles()
@@ -76,7 +77,7 @@ class visualizer():
 
 
     def visualize_rgb(self):
-        rgb_path = os.path.join(self.target_dir, f"color_top_down_{self.version}")
+        rgb_path = os.path.join(self.target_dir, f"color_top_down_{self.version}.npy")
         rgb = load_map(rgb_path)
         rgb =rgb[self.target_bbox[0]:self.target_bbox[1]+1, self.target_bbox[2]:self.target_bbox[3]+1]
         rgb_pil = Image.fromarray(rgb)

@@ -40,7 +40,7 @@ class SeemMap_bbox(SeemMap):
         self.threshold_semSim_post = self.config["threshold_semSim_post"]
         self.threshold_geoSim_post = self.config["threshold_geoSim_post"]
         self.threshold_pixelSize_post = self.config["threshold_pixelSize_post"]
-        self.rot_map = self.config["rot_map"]
+        self.rot_map = self.config["no_rot_map"]
         
         self.max_height = self.config["max_height"]
 
@@ -328,7 +328,7 @@ class SeemMap_bbox(SeemMap):
                 if h < 1e-4 : continue #self.camera_height:continue #! 
                 self.clip_grid[y, x] = (self.clip_grid[y, x] * self.weight[y, x] + clip_features) / (self.weight[y, x] + 1)
                 self.weight[y,x] += 1
-                self.obstacles[y,x]=1
+                self.obstacles[y,x]=0
 
     def denoising(self, mask:NDArray, min_size:int =5) -> NDArray:
         # type1. biggest one return / type2. removing small noise
@@ -532,8 +532,7 @@ class SeemMap_bbox(SeemMap):
                 break
         if self.rot_map:
             for id, val in self.instance_dict.items():
-                self.instance_dict[id]['mask'] = np.rot90(val['mask'], k=3)
-
+                self.instance_dict[id]['mask'] = np.rot90(val['mask'], k=1)#! 3
 
 
 
@@ -634,7 +633,7 @@ class SeemMap_bbox(SeemMap):
         if self.bool_submap:
             self.color_top_down_height = -(self.camera_height + 1) * np.ones((self.gs, self.gs), dtype=np.float32)
             self.color_top_down = np.zeros((self.gs, self.gs, 3), dtype=np.uint8)
-            self.obstacles = np.zeros((self.gs, self.gs), dtype=np.uint8)
+            self.obstacles = np.ones((self.gs, self.gs), dtype=np.uint8)
             self.weight = np.zeros((self.gs, self.gs), dtype=np.float32)
         self.clip_grid = np.zeros((self.gs, self.gs, 512), dtype=float)
         self.grid = np.empty((self.gs,self.gs),dtype=object)
@@ -651,10 +650,10 @@ class SeemMap_bbox(SeemMap):
     def save_map(self):
         if self.bool_submap:
             if self.rot_map:
-                self.datamanager.save_map(color_top_down=np.rot90(self.color_top_down, k=3),
-                                    grid=np.rot90(self.grid, k=3),
-                                    obstacles=np.rot90(self.obstacles, k=3),
-                                    weight=np.rot90(self.weight, k=3),
+                self.datamanager.save_map(color_top_down=np.rot90(self.color_top_down, k=1),#! 3
+                                    grid=np.rot90(self.grid, k=1),#! 3
+                                    obstacles=np.rot90(self.obstacles, k=1),#! 3
+                                    weight=np.rot90(self.weight, k=1),#! 3
                                     instance_dict=self.instance_dict,
                                     frame_mask_dict=self.frame_mask_dict,
                                     clip_grid=self.clip_grid)
@@ -668,7 +667,7 @@ class SeemMap_bbox(SeemMap):
                                         clip_grid=self.clip_grid)
         else:
             if self.rot_map:
-                self.datamanager.save_map(grid=np.rot90(self.grid, k=3),
+                self.datamanager.save_map(grid=np.rot90(self.grid, k=1),#! 3
                                     instance_dict=self.instance_dict,
                                     frame_mask_dict=self.frame_mask_dict,
                                     clip_grid=self.clip_grid)

@@ -40,7 +40,7 @@ class RoomSegProcessor:
 
     def process(self):
         obs_npy = self.load_map(os.path.join(self.data_dir,f'obstacles_{self.version}.npy'))
-        x_indices, y_indices = np.where(obs_npy == 1)
+        x_indices, y_indices = np.where(obs_npy == 0)
         self.xmin = np.min(x_indices)
         self.xmax = np.max(x_indices)
         self.ymin = np.min(y_indices)
@@ -107,10 +107,10 @@ class RoomSegmentation:
 
         lined_img = cv2.cvtColor(extended_lined_img, cv2.COLOR_BGR2GRAY)
 
-        rotated_img = self.rotate_img(lined_img, 90)
-        detected_lines = self.line_segmentation(rotated_img, '/3-DetectedLines')
+        # rotated_img = self.rotate_img(lined_img, 90)
+        detected_lines = self.line_segmentation(lined_img, '/3-DetectedLines')
         extended2_lines = self.extend_lines(detected_lines)
-        extended2_lined_img = cv2.createLineSegmentDetector(1).drawSegments(rotated_img, extended2_lines)
+        extended2_lined_img = cv2.createLineSegmentDetector(1).drawSegments(lined_img, extended2_lines)
         cv2.imwrite(self.dir + "/4-ExtendedLines.png", extended2_lined_img)
 
         kernel = np.ones((self.kernel_size, self.kernel_size), np.uint8)
@@ -122,8 +122,8 @@ class RoomSegmentation:
 
         # circles = self.circle_detection(lined_img)
 
-        second_rotated_img = self.rotate_img(lined_img, 270)
-        components = self.connected_component(second_rotated_img)
+        # second_rotated_img = self.rotate_img(lined_img, 270)
+        components = self.connected_component(lined_img)
 
         # original = self.transfer_to_original(components)
         cv2.imwrite(self.dir + '/6-output.png', components)

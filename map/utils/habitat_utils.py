@@ -14,7 +14,7 @@ def make_cfg(settings: Dict) -> habitat_sim.Configuration:
     sim_cfg.gpu_device_id = 0
     sim_cfg.scene_id = settings["scene"]
     sim_cfg.enable_physics = settings["enable_physics"]
-    sim_cfg.scene_dataset_config_file = settings["scene_dataset"]
+    sim_cfg.scene_dataset_config_file = settings["scene_dataset_config_file"]
 
 
 

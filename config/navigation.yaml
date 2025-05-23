@@ -1,0 +1,87 @@
+habitat_dir: "/home/vlmap_RCI/Data/simulation_dataset/mp3d/"
+data_dir: "/home/vlmap_RCI/Data/"
+data_type: "habitat_sim"
+dataset_type: "mp3d"
+scene_id: "5LpN3gDmAk7_4"
+version: "finR"
+map_type: "vlmap"
+pose_info:
+  pose_type: mobile_base # mobile_base, camera_base
+  rot_type: "quat" # "mat", or "quat" (x, y, z, w)
+  # if pose_type is camera, the following parameters are ignored
+  camera_height: 1.5
+  base2cam_rot: [1, 0, 0, 0, -1, 0, 0, 0, -1]
+  base_forward_axis: [0, 0, -1]
+  base_left_axis: [-1, 0, 0]
+  base_up_axis: [0, 1, 0]
+# skip_frame: 1
+# cam_calib_mat: [540, 0, 540, 0, 540, 360, 0, 0, 1]
+grid_size: 2000
+cell_size: 0.025
+
+
+potential_obstacle_names: null
+obstacle_names: null
+# depth_sample_rate: 100
+# dilate_iter: 3
+# gaussian_sigma: 1.0
+# customize_obstacle_map: False
+
+
+forward_dist: 0.1 # 0.05
+turn_angle: 5 #1
+sim_setting:
+  scene_dataset_config_file: "/home/vlmap_RCI/Data/simulation_dataset/mp3d/mp3d.scene_dataset_config.json"
+  default_agent: 0
+  sensor_height: 1.5 #${params.camera_height}
+  color_sensor: True
+  depth_sensor: False
+  semantic_sensor: False
+  lidar_sensor: False
+  move_forward: 0.1  #${params.forward_dist}
+  turn_left: 5 #${params.turn_angle}
+  turn_right: 5 #${params.turn_angle}
+  width: 640 # 1920
+  height: 480 # 1080
+  enable_physics: False
+  seed: 1
+  lidar_fov: 360
+  depth_img_for_lidar_n: 20
+  img_save_dir: "/tmp"
+
+
+# map_config:
+#   grid_size: ${params.gs}
+#   cell_size: ${params.cs}
+#   dilate_iter: 5
+#   gaussian_sigma: 1.0
+#   potential_obstacle_names:
+#     - "chair"
+#     - "wall"
+#     - "wall above the door"
+#     - "table"
+#     - "window"
+#     - "floor"
+#     - "stairs"
+#     - "other"
+#   obstacle_names:
+#     - "wall"
+#     - "chair"
+#     - "table"
+#     - "window"
+#     - "stairs"
+#     - "other"
+#   categories: "mp3d" # "mp3d", "ai2thor"
+
+
+controller_config:
+  gs: 2000 #${params.gs}
+  cs: 0.025 #${params.cs}
+  forward_dist: 0.1 #${params.forward_dist}
+  turn_angle: 5 #${params.turn_angle}
+  goal_dist_thres: 0.1
+
+nav:
+  valid_range: 1
+  vis: True
+  tasks_per_scene: 20

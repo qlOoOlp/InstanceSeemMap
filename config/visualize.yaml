@@ -1,17 +1,17 @@
-data_path: "/nvme0n1/hong/VLMAPS/InstanceSeemMap/Data"
+data_path: "/home/vlmap_RCI/Data"
 data_type: "habitat_sim"
-dataset_type : "replica" # "replica" 
+dataset_type : "mp3d" # "replica" 
 vlm: "ours" # "lseg" "seem" "ours"
-version: "b1209_ps50aft_s" #"b1209_ps50aft_s" # "lseg" "seem"
-scene_id: apartment_0_1
+version: "fin" #"b1209_ps50aft_s" # "lseg" "seem"
+scene_id: 5LpN3gDmAk7_4
 
 gt_version: "gt"
 visualize:
   - "obstacles"
   - "rgb"
-  - "map"
-  - "gt"
-  - "instance"
-  - "heatmap"
+  # - "map"
+  # - "gt"
+  # - "instance"
+  # - "heatmap"
 heatmap_type: "simscore" # simscore / category
 save_image: true
