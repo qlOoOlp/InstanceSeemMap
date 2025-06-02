@@ -38,11 +38,11 @@ class Map:
         self._setup_paths(data_dir)
 
 
-        self.obstacles_map = np.load(os.path.join(self.map_dir,f"obstacles_{self.map_config['version']}.npy" ))
-        self.rgb_topdown = np.load(os.path.join(self.map_dir,f"color_top_down_{self.map_config['version']}.npy" ))
-        with open(os.path.join(self.map_dir, f"categorized_instace_dict_{self.map_config['version']}.pkl"), "rb") as f:
+        self.obstacles_map = np.load(os.path.join(self.map_dir,"02buildCatMap",f"obstacles_{self.map_config['version']}.npy" ))
+        self.rgb_topdown = np.load(os.path.join(self.map_dir,"01buildFeatMap",f"color_top_down_{self.map_config['version']}.npy" ))
+        with open(os.path.join(self.map_dir,"02buildCatMap", f"categorized_instace_dict_{self.map_config['version']}.pkl"), "rb") as f:
             self.instance_dict = pickle.load(f)
-        self.grid_map = np.load(os.path.join(self.map_dir, f"grid_{self.map_config['version']}.npy"), allow_pickle=True)
+        self.grid_map = np.load(os.path.join(self.map_dir,"01buildFeatMap", f"grid_{self.map_config['version']}.npy"), allow_pickle=True)
 
         self.generate_cropped_obstacle_map(self.obstacles_map)
         print(f"obstacles_map shape: {self.obstacles_map.shape}")

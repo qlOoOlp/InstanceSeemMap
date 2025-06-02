@@ -25,9 +25,9 @@ def main():
     captioning.run()
 
     caption_file = os.path.join(config['root_path'], config['data_type'], config['dataset_type'], config['scene_id'], 'map',
-                                f"{config['scene_id']}_{config['version']}", 'caption', 'inst_data.json')
+                                f"{config['scene_id']}_{config['version']}", "05_captioninstance",'caption', 'inst_data.json')
     regenerated_caption_file = os.path.join(config['root_path'], config['data_type'], config['dataset_type'], config['scene_id'], 'map',
-                                f"{config['scene_id']}_{config['version']}", 'caption', 'regenerated_inst_data.json')
+                                f"{config['scene_id']}_{config['version']}", "05_captioninstance",'caption', 'regenerated_inst_data.json')
     prompt_obj = GPTPrompt()
     new_dict = {}
     with open(caption_file, "r") as st_json:

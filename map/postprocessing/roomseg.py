@@ -39,7 +39,7 @@ class RoomSegProcessor:
         cv2.imwrite(path, image)
 
     def process(self):
-        obs_npy = self.load_map(os.path.join(self.data_dir,f'obstacles_{self.version}.npy'))
+        obs_npy = self.load_map(os.path.join(self.data_dir,"01buildFeatMap",f'obstacles_{self.version}.npy'))
         x_indices, y_indices = np.where(obs_npy == 0)
         self.xmin = np.min(x_indices)
         self.xmax = np.max(x_indices)
@@ -48,10 +48,10 @@ class RoomSegProcessor:
         
         # 1. Load mask maps
         obs_npy = self.crop(obs_npy)
-        wall_npy = self.crop(self.load_map(os.path.join(self.data_dir, 'walls', f'wall_mask_{self.version}.npy')))
-        door_npy = self.crop(self.load_map(os.path.join(self.data_dir, 'walls', f'door_mask_{self.version}.npy')))
-        window_npy = self.crop(self.load_map(os.path.join(self.data_dir, 'walls', f'window_mask_{self.version}.npy')))
-        others_npy = self.crop(self.load_map(os.path.join(self.data_dir, 'walls', f'others_mask_{self.version}.npy')))
+        wall_npy = self.crop(self.load_map(os.path.join(self.data_dir,"02buildCatMap", 'walls', f'wall_mask_{self.version}.npy')))
+        door_npy = self.crop(self.load_map(os.path.join(self.data_dir,"02buildCatMap", 'walls', f'door_mask_{self.version}.npy')))
+        window_npy = self.crop(self.load_map(os.path.join(self.data_dir,"02buildCatMap", 'walls', f'window_mask_{self.version}.npy')))
+        others_npy = self.crop(self.load_map(os.path.join(self.data_dir,"02buildCatMap", 'walls', f'others_mask_{self.version}.npy')))
 
         # 2. Wall candidates for room segmentation
         intersection = np.logical_and(wall_npy, obs_npy).astype(np.uint8)

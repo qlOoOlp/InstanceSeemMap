@@ -307,7 +307,8 @@ class DataLoader():
     def __init__(self, config:DictConfig):
         self.config = config
         self.data_path = os.path.join(self.config["root_path"], f"{self.config['data_type']}/{self.config['dataset_type']}/{self.config['scene_id']}")
-        self._map_path = os.path.join(self.data_path, f"map/{self.config['scene_id']}_{self.config['version']}")
+        self._map_path = os.path.join(self.data_path, f"map/{self.config['scene_id']}_{self.config['version']}/01buildFeatMap")
+        self._output_path = os.path.join(self.data_path, f"map/{self.config['scene_id']}_{self.config['version']}/02buildCatMap")
         self.load_hparams()
         self.getmap()
         
@@ -349,11 +350,11 @@ class DataLoader():
         return result
 
     def save_map(self, **kwargs)->None:
-        data_save_dir = os.path.join(self._map_path,"walls")
+        data_save_dir = os.path.join(self._output_path,"walls")
         self.check_dir(data_save_dir)
         for key, value in kwargs.items():
             if type(value) == type({1:1}):
-                map_save_path = os.path.join(self._map_path, f"{key}_{self.config['version']}.pkl")
+                map_save_path = os.path.join(self._output_path, f"{key}_{self.config['version']}.pkl")
                 with open(map_save_path, 'wb') as f:
                     pickle.dump(value, f)
                 continue

@@ -7,11 +7,18 @@ scene_id: 5LpN3gDmAk7_4
 
 gt_version: "gt"
 visualize:
+  - "gt"
   - "obstacles"
   - "rgb"
   # - "map"
-  # - "gt"
+  # - "2Dmap"
   # - "instance"
+  # - "instances_in_cat"
   # - "heatmap"
+  # - "room"
+instances_to_visualize: null # using for visualize_instance
+categories_to_visualize: null #using for visualize_instances_in_cat
+using_categorized_map: true
+using_postprocessed_obstacles: true
 heatmap_type: "simscore" # simscore / category
 save_image: true

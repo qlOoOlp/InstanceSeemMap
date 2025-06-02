@@ -45,13 +45,13 @@ class evaluation():
         self.grid_paths = []
         if self.vlm == "ours": self.embedding_paths = []
         for scene_id in self.scenes:
-            self.gt_paths.append(os.path.join(self.data_dir, scene_id, "map", f"{scene_id}_{self.gt_version}", f"grid_{self.gt_version}.npy"))
-            self.obstacle_paths.append(os.path.join(self.data_dir, scene_id, "map", f"{scene_id}_{self.gt_version}", f"obstacles_{self.gt_version}.npy"))
-            self.color_paths.append(os.path.join(self.data_dir, scene_id, "map", f"{scene_id}_{self.version}", f"color_top_down_{self.version}.npy"))
+            self.gt_paths.append(os.path.join(self.data_dir, scene_id, "map", f"{scene_id}_{self.gt_version}", "01buildFeatMap", f"grid_{self.gt_version}.npy"))
+            self.obstacle_paths.append(os.path.join(self.data_dir, scene_id, "map", f"{scene_id}_{self.gt_version}", "01buildFeatMap", f"obstacles_{self.gt_version}.npy"))
+            self.color_paths.append(os.path.join(self.data_dir, scene_id, "map", f"{scene_id}_{self.version}", "01buildFeatMap", f"color_top_down_{self.version}.npy"))
             if self.vlm == "floodfill" or self.vlm == "dbscan":
-                self.grid_paths.append(os.path.join(self.data_dir, scene_id, "map", f"{scene_id}_{self.version}", f"{self.vlm}_{self.version}.npy"))
+                self.grid_paths.append(os.path.join(self.data_dir, scene_id, "map", f"{scene_id}_{self.version}", "01buildFeatMap", f"{self.vlm}_{self.version}.npy"))
             else:
-                self.grid_paths.append(os.path.join(self.data_dir, scene_id, "map", f"{scene_id}_{self.version}", f"grid_{self.version}.npy"))
+                self.grid_paths.append(os.path.join(self.data_dir, scene_id, "map", f"{scene_id}_{self.version}", "01buildFeatMap", f"grid_{self.version}.npy"))
         print(f"Loaded paths for {len(self.scenes)} scenes")
 
     def load_cat(self):
