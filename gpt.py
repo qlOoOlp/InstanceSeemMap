@@ -147,6 +147,25 @@ class GPTPrompt:
             }
         ]
         return prompt_json
+    
+    def query(self, query_type, json_data):
+        if query_type == "object":
+            query = "Find a chair."
+        elif query_type == "room":
+            query = "Find a curtain in the bedroom."
+        elif query_type == "visual_feat":
+            query = "Find a wood chair in the bedroom."
+            # query = "Find a brown chair in the bedroom."
+        elif query_type == "object_func":
+            query = "Find a something to sit on."
+        elif query_type == "relationship":
+            # query = "Find a chair next to a desk."
+            pass
+        prompt_json = [
+            {"role": "system", "content": "You are a helpful assistant that selects the most appropriate item from a list of JSON objects based on the user's query."},
+            {"role": "user", "content": f"From the following JSON list, find the item that best matches the query and return only its instance_id. If there is no suitable match, do not return anything.: '{query}'\n\n{json_data}"}
+        ]   
+        return prompt_json
 
 # Usage example
 if __name__ == "__main__":
