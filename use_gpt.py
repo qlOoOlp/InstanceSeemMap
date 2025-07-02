@@ -54,11 +54,13 @@ def query_process(inst_json_file):
     with open(inst_json_file, "r") as st_json:
         inst_json = json.load(st_json)
 
-    messages = prompt_obj.query(query_type="object", json_data=inst_json)[:]
+    query = "Find a lighting in the bedroom."
+    messages = prompt_obj.query(query, json_data=inst_json)[:]
 
     print(parse_object_goal_instruction(messages=messages))
 
 def make_queries_process(cnt_dict, img_dir, inst_json_file, p_file, f_path):
+
     with open(inst_json_file, "r") as st_json:
         inst_json = json.load(st_json)
 
@@ -109,6 +111,5 @@ if __name__ == "__main__":
         img_dir = os.path.join(args.root_dir, args.scene_id, 'rgb')
         pkl_file_path = os.path.join(inst_caption_dir, args.pkl_file)
         save_f_path = os.path.join(inst_caption_dir, args.save_query_file)
-
         make_queries_process(CNT_DICT, img_dir, new_json_file_path, pkl_file_path, save_f_path)
     
