@@ -1,6 +1,12 @@
-
+import os, base64
+import random
+import pickle
 from mp3d_room import mp3d_room
 from mp3d import mp3d
+
+def encode_image_to_base64(image_path):
+    with open(image_path, "rb") as f:
+        return base64.b64encode(f.read()).decode("utf-8")
 
 class GPTPrompt:
     def __init__(self):
@@ -166,7 +172,144 @@ class GPTPrompt:
             {"role": "user", "content": f"From the following JSON list, find the item that best matches the query and return only its instance_id. If there is no suitable match, do not return anything.: '{query}'\n\n{json_data}"}
         ]   
         return prompt_json
+    
+    def make_query(self, query_type, img_dir, inst_caption, inst_content):
+        frame_num = f'{next(iter(inst_content["frames"].keys())):06}'
+        base64_image = encode_image_to_base64(os.path.join(img_dir, f"{frame_num}.png"))
+        
+        prompt = ""
+        reference_text = """
+                        Ex1. The dark wood cabinet, likely walnut or mahogany, features a glossy finish, intricate carvings, and sturdy construction, suggesting high-quality craftsmanship from the late 19th or early 20th century.
+                        Ex2. The large dark wood door, featuring an aged finish and glass panels, stands prominently in the hallway, adding character and elegance.
+                        Ex3. TThe flat-screen TV monitor with a dark brown wooden frame is mounted on the wall, providing a modern touch to the hallway.
+                        """
+        
+        if query_type == "object":
+            prompt = f"""
+                        You are given an image. Your task is to analyze the image and identify a visually prominent object.
+                        Generate a short natural language query for a user to find this object.
 
+                        The query can be:
+                        - A specific target like "find a sofa"
+                        - Or more abstract like "find something to sit on" or "find something to sleep"
+
+                        Focus only on the object itself. Do NOT include room information or surrounding context.
+                    """
+        elif query_type == "room":
+            prompt = """
+                        You are given an image. Your task is to:
+                        1. Identify the type of room shown in the image (e.g., bedroom, bathroom, kitchen, hallway).
+                        2. Identify one prominent object in that room.
+                        3. Generate a natural language search query.
+
+                        Output must follow this exact format:
+                        Find a [object] in the [room type].
+
+                        Do NOT include:
+                        - Bullet points
+                        - Markdown formatting
+                        - "Search query:" or any other prefixes
+                        - Explanations or justification
+                        - Descriptions beyond the target object and room
+
+                        Good Examples:
+                        Find a cozy bed in the bedroom.
+                        Find a white sink in the bathroom.
+                        Find a vintage chair in the living room.
+
+                        Now generate only one sentence in that format.
+                    """
+        elif query_type == "caption":
+            prompt = f"""
+                        You are given an image and a list of object descriptions. Each description refers to a specific instance of an object in the scene.
+
+                        Your task is to look at the image and, based on the visual elements you detect,
+                        select the most visually relevant instance from the reference text,
+                        and generate a highly detailed and specific search query describing that object.
+
+                        Use natural language. Your goal is to make the query both *visually grounded* and *textually enriched*.
+
+                        Reference Descriptions:
+                        {reference_text}
+
+                        Be specific, natural, and visually grounded. Do not describe the instance itself — focus on locating the target object using the instance as context.
+
+                        - "Find a chair positioned next to the window covered with lace curtain."
+                    """
+        elif query_type == "mixed":
+            prompt = f"""
+                        You are given an image and a set of detailed descriptions of objects or furniture in the scene.
+
+                        Your task:
+                        1. Identify the most visually prominent object in the image.
+                        2. Match it to the most relevant reference description.
+                        3. Infer the type of room (e.g., bedroom, kitchen, hallway) from the image.
+                        4. Generate a natural search query that includes:
+                        - Object type
+                        - Descriptive attributes (e.g., color, material, design)
+                        - Room/location where the object is found
+
+                        Important:
+                        - Use adjectives to describe the object.
+                        - **Do NOT use adjectives for the room type.** Keep it simple, like "in the bedroom" or "in the living room".
+
+                        ### Example Output:
+                        Find a vintage wooden bed with a colorful quilt in the bedroom.
+                    """
+            
+        prompt_json = [
+            {"role": "system", "content": "You are a helpful vision-language assistant."},
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": prompt},
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/png;base64,{base64_image}",
+                            "detail": "high"
+                        }
+                    }
+                ]
+            }
+        ]
+        return prompt_json, frame_num 
+    
+    # 이미지를 받아서 query_type에 따라 적절한 쿼리를 생성하는 함수
+    def make_queries(self, img_dir, inst_json, pkl_file, cnt_dict): 
+        with open(pkl_file, 'rb') as f:
+            inst_dict = pickle.load(f)
+
+        extracted_inst_list = []
+        inst_id_list = list(inst_dict.keys())
+        
+        query_inst_dict = {}
+        query_dict = {key: [] for key in cnt_dict}
+
+        for query_type, cnt in cnt_dict.items():
+            for _ in range(cnt):
+                inst_info = {}
+                # random inst_id 추출
+                random_inst_id = random.choice(inst_id_list)
+                inst_id_list.remove(random_inst_id)
+                if random_inst_id in extracted_inst_list:
+                    continue
+                inst_caption = inst_json[f"{random_inst_id}"]["captions"]
+
+                prompt_json, frame_num  = self.make_query(query_type, img_dir, inst_caption, inst_dict[random_inst_id])
+
+                query_dict_ = dict()
+                query_dict_["inst_id"] = random_inst_id
+                query_dict_["prompt"] = prompt_json
+                query_dict[query_type].append(query_dict_)
+                
+                inst_info["inst_id"] = random_inst_id
+                inst_info["frame"] = frame_num
+                inst_info["q_type"] = query_type
+                query_inst_dict[random_inst_id] = inst_info
+
+        return query_inst_dict, query_dict
+    
 # Usage example
 if __name__ == "__main__":
     prompt_obj = GPTPrompt()
