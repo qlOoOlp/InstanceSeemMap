@@ -22,7 +22,7 @@ class Map:
         # self.obstacles = load_map(obstacles_path)
         self.gs = map_config["grid_size"]
         self.cs = map_config["cell_size"]
-
+        self.use_semantic_obstalces = map_config["use_semantic_obstacles"]
         self.mapped_iter_list = None
         self.grid_feat = None
         self.grid_pos = None
@@ -36,9 +36,11 @@ class Map:
         self._setup_transforms()
         
         self._setup_paths(data_dir)
-
-
-        self.obstacles_map = np.load(os.path.join(self.map_dir,"02buildCatMap",f"obstacles_{self.map_config['version']}.npy" ))
+            
+        if self.use_semantic_obstalces:
+            self.obstacles_map = np.load(os.path.join(self.map_dir,"02buildCatMap",f"semantic_obstacles_{self.map_config['version']}.npy" ))
+        else: self.obstacles_map = np.load(os.path.join(self.map_dir,"01buildFeatMap",f"obstacles_{self.map_config['version']}.npy" ))
+        self.obstacles_map = self._dilate_map(self.obstacles_map, dilate_iter=self.map_config["dilate_iter"], erode_iter=self.map_config['erode_iter'], gaussian_sigma=self.map_config["gaussian_sigma"], threshold=self.map_config['gaussian_threshold']) #! obstacle map!!!
         self.rgb_topdown = np.load(os.path.join(self.map_dir,"01buildFeatMap",f"color_top_down_{self.map_config['version']}.npy" ))
         with open(os.path.join(self.map_dir,"02buildCatMap", f"categorized_instace_dict_{self.map_config['version']}.pkl"), "rb") as f:
             self.instance_dict = pickle.load(f)
@@ -110,7 +112,7 @@ class Map:
     #     return self.obstacles_map
 
     def generate_cropped_obstacle_map(self, obstacle_map: np.ndarray) -> np.ndarray:
-        x_indices, y_indices = np.where(obstacle_map == 0)
+        x_indices, y_indices = np.where(obstacle_map == 1)
         self.rmin = np.min(x_indices)
         self.rmax = np.max(x_indices)
         self.cmin = np.min(y_indices)
@@ -179,11 +181,26 @@ class Map:
         return rgb_map[self.rmin : self.rmax, self.cmin : self.cmax]
 
     @staticmethod
-    def _dilate_map(binary_map: np.ndarray, dilate_iter: int = 0, gaussian_sigma: float = 1.0):
+    def _dilate_map(binary_map: np.ndarray, dilate_iter: int = 0, erode_iter: int = 0, gaussian_sigma: float = 1.0, threshold: float=0.5):
         h, w = binary_map.shape
+
+        # --- 1) 업샘플 + 블러 + 이진화 ---------------------------
+        up = cv2.resize(binary_map.astype(float), (w * 2, h * 2))
+        up = gaussian_filter(up, sigma=gaussian_sigma, truncate=3)
+        up = (up > threshold).astype(np.uint8)
+
+        # --- 2) 모폴로지 연산 -------------------------------------
+        if dilate_iter > 0:
+            up = binary_dilation(up, structure=np.ones((3, 3)), iterations=dilate_iter * 2)
+        if erode_iter > 0:
+            up = binary_erosion(up, structure=np.ones((3, 3)), iterations=erode_iter * 2)
+
+        # --- 3) 다운샘플 -----------------------------------------
+        down = cv2.resize(up.astype(float), (w, h))
+        return down.astype(np.uint8)
         binary_map = cv2.resize(binary_map.astype(float), (w * 2, h * 2))
         binary_map = gaussian_filter((binary_map).astype(float), sigma=gaussian_sigma, truncate=3)
-        binary_map = (binary_map > 0.5).astype(np.uint8)
+        binary_map = (binary_map > 0.7).astype(np.uint8)
         binary_map = binary_dilation(
             binary_map,
             structure=np.ones((3, 3)),

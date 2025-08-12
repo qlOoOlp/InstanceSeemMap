@@ -40,10 +40,13 @@ class SeemMap(Map):
         print("Processing data...")
 
         # print(self.datamanager.get_init_pose())
-        b_pos, b_rot = self.datamanager.get_init_pose()
-        base_pose = np.eye(4)
-        base_pose[:3, :3] = b_rot
-        base_pose[:3, 3] = b_pos.reshape(-1)
+        if self.pose_type == "mat":
+            base_pose = self.datamanager.get_init_pose()
+        else:
+            b_pos, b_rot = self.datamanager.get_init_pose()
+            base_pose = np.eye(4)
+            base_pose[:3, :3] = b_rot
+            base_pose[:3, 3] = b_pos.reshape(-1)
         # print(base_pose)
         self.init_base_tf = base_pose
         self.base_transform = np.array([[0,0,-1,0],[-1,0,0,0],[0,1,0,0],[0,0,0,1]])

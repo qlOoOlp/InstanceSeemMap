@@ -1,24 +1,37 @@
 data_path: "/home/vlmap_RCI/Data"
 data_type: "habitat_sim"
-dataset_type : "mp3d" # "replica" 
+dataset_type : "hm3dsem" # "replica" 
 vlm: "ours" # "lseg" "seem" "ours"
-version: "fin" #"b1209_ps50aft_s" # "lseg" "seem"
-scene_id: 5LpN3gDmAk7_4
+version: "test0811mh3" #"test0721_max3_mapmin10" #"b1209_ps50aft_s" # "lseg" "seem"
+scene_id: 00877-4ok3usBNeis #00824-Dd4bFSTQ8gi
 
 gt_version: "gt"
 visualize:
-  - "gt"
+  # - "gt"
   - "obstacles"
   - "rgb"
-  # - "map"
-  # - "2Dmap"
-  # - "instance"
-  # - "instances_in_cat"
-  # - "heatmap"
+  - "2Dmap"
+  - "map"
+  - "instance"
+  - "instances_in_cat"
+  - "heatmap"
   # - "room"
-instances_to_visualize: null # using for visualize_instance
-categories_to_visualize: null #using for visualize_instances_in_cat
+instances_to_visualize: #null # using for visualize_instance
+  - 2
+
+categories_to_visualize:  #using for visualize_instances_in_cat
+  - 'bed'
+  - 'floor'
+  - 'chair'
+  - "counter"
+  - "floor"
+  - "sofa"
+  - "ceiling"
 using_categorized_map: true
-using_postprocessed_obstacles: true
-heatmap_type: "simscore" # simscore / category
+using_avg_height: true
+using_postprocessed_obstacles: true #! true 테스트 해봐야됨
+heatmap_type: "simscore" # simscore / category # simscore is better than category
+heatmap_target: 
+  - "chair"
 save_image: true
+filtering_floor: false #!?????? 왜 필터링 되지 그러면

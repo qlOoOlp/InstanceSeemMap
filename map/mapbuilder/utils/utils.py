@@ -27,6 +27,7 @@ def poseLoader_mat(path):
         line = f.readline()
         row = [float(x) for x in line.split()]
         pose = np.array(row, dtype=float).reshape((4, 4))
+
         return pose
 
 def depthLoader2(path):

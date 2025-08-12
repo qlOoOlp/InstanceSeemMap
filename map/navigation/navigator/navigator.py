@@ -1,6 +1,6 @@
 import numpy as np
 import pyvisgraph as vg
-from map.utils.navigation_utils import build_visgraph_with_obs_map, plan_to_pos_v2
+from map.utils.navigation_utils import build_visgraph_with_obs_map, plan_to_pos_v2, plan_to_pos_v3
 from typing import Tuple, List, Dict
 
 
@@ -9,6 +9,7 @@ class Navigator:
         pass
 
     def build_visgraph(self, obstacle_map: np.ndarray, rowmin: float, colmin: float, vis: bool = False):
+        # obstacle_map = (obstacle_map==0)
         self.obs_map = obstacle_map
         self.visgraph = build_visgraph_with_obs_map(obstacle_map, vis=vis)
         self.rowmin = rowmin
@@ -25,7 +26,7 @@ class Navigator:
         goal = self._convert_full_map_pos_to_cropped_map_pos(goal_full_map)
         if self._check_if_start_in_graph_obstacle(start):
             self._rebuild_visgraph(start, vis)
-        paths = plan_to_pos_v2(start, goal, self.obs_map, self.visgraph, vis)
+        paths = plan_to_pos_v3(start, goal, self.obs_map, self.visgraph, vis) #!#!#!#!#!
         paths = self.shift_path(paths, self.rowmin, self.colmin)
         return paths
 

@@ -22,7 +22,7 @@ from map.mapbuilder.map.seemmap import SeemMap
 from map.mapbuilder.utils.datamanager import DataManager, DataManager4Real
 from map.mapbuilder.utils.preprocessing import IQR, depth_filtering
 
-class SeemMap_bbox(SeemMap):
+class SeemMap_bbox4hm3d22(SeemMap):
     def __init__(self, config:DictConfig):
         super().__init__(config)
         self.bool_submap = self.config["no_submap"]
@@ -56,8 +56,8 @@ class SeemMap_bbox(SeemMap):
         # b_pos, b_rot = self.datamanager.get_init_pose()
         if self.pose_type == "mat":
             self.base2cam_tf = self.datamanager.get_init_pose()
-            self.datamanager.rectification_matrix = self.base2cam_tf[:3,:3] #!#!#!#!#!#!#!#!#
-            self.datamanager.rectification_matrix = np.linalg.inv(self.datamanager.rectification_matrix) #!#!#!#!#!#!#!#!#!#!#!#
+            # self.datamanager.rectification_matrix = self.base2cam_tf[:3,:3] #!#!#!#!#!#!#!#!#
+            # self.datamanager.rectification_matrix = np.linalg.inv(self.datamanager.rectification_matrix) #!#!#!#!#!#!#!#!#!#!#!#
         else:
             b_pos, b_rot = self.datamanager.get_init_pose()
             base_pose = np.eye(4)
@@ -99,6 +99,7 @@ class SeemMap_bbox(SeemMap):
                 if len(tf_list) == 1:
                     init_tf_inv = np.linalg.inv(tf_list[0])
                 # tf = init_tf_inv @ pose
+                pose[:3,:3] = pose[:3,:3] @ self.datamanager.rectification_matrix #!#!#!#!#!#!
                 tf = pose
             else:
                 pose2 = np.eye(4)
@@ -160,9 +161,9 @@ class SeemMap_bbox(SeemMap):
                     pc_global = transform_pc(pc, pc_transform)
             else:
                 if self.pose_type == "mat":
-                    # pc, mask = depth2pc(depth, max_depth=self.max_depth, min_depth=self.min_depth) #!#!#!#!#!#!#!#!#!#!
+                    pc, mask = depth2pc(depth, depth_scale=1000) #!#!#!#!#!#!#!#!#!#!
 
-                    pc, mask = depth2pc(depth,intr_mat = np.array([[600, 0, 599.5],[0, 600, 339.5],[0,0,1]]), max_depth=self.max_depth, min_depth=self.min_depth, depth_scale=6553.5)  #!##!#!#!##
+                    # pc, mask = depth2pc(depth,intr_mat = np.array([[600, 0, 599.5],[0, 600, 339.5],[0,0,1]]), max_depth=self.max_depth, min_depth=self.min_depth, depth_scale=6553.5)  #!##!#!#!##
                 else:
                     pc, mask = depth2pc(depth, max_depth=self.max_depth, min_depth=self.min_depth)
 
@@ -214,15 +215,15 @@ class SeemMap_bbox(SeemMap):
                     # print(pp)
                     if self.pose_type == "mat":
                         # print(pp[2])
-                        pp[2] += self.camera_height #!#!#!#!#!#!#!#!#!#!#!#!#!#!#!#!#
-                        # if pp[2] > self.max_height or pp[2] < 1e-4: continue #1e-4:continue #!#!#!#!#!#!#!##!#!#!#!#!
-                        x,y = pos2grid_id(self.gs,self.cs,pp[0],pp[1])
-                        feat_map[y,x] = pp[2]
+                        pp[1] += self.camera_height #!#!#!#!#!#!#!#!#!#!#!#!#!#!#!#!#
+                        # if pp[2] > 3 or pp[2] < 0.5: continue #1e-4:continue #!#!#!#!#!#!#!##!#!#!#!#!
+                        x,y = pos2grid_id(self.gs,self.cs,pp[0],pp[2])
+                        feat_map[y,x] = pp[1]
                         feat_map_bool[y,x]=True
                     else:
-                        if pp[2] >1e-4 and pp[2] < self.max_height:
+                        if pp[1] >1e-4 and pp[2] < self.max_height:
                         # if pp[2] >1e-4 and pp[2] < 2:
-                            x,y = pos2grid_id(self.gs,self.cs,pp[0],pp[1])
+                            x,y = pos2grid_id(self.gs,self.cs,pp[0],pp[2])
                             feat_map[y,x] = pp[2]
                             feat_map_bool[y,x]=True
                 # print(np.sum(feat_map_bool))
@@ -252,7 +253,7 @@ class SeemMap_bbox(SeemMap):
                     matching_id[seem_id] = max_id
                     candidate_mask = (map_idx == seem_id).astype(np.uint8)
                     pixels = np.sum(candidate_mask)
-                    frame_mask[candidate_mask == seem_id] = max_id
+                    frame_mask[candidate_mask == 1] = max_id
                 else:
                     candidate_emb = embeddings[seem_id]
                     norm = np.linalg.norm(candidate_emb)
@@ -348,11 +349,11 @@ class SeemMap_bbox(SeemMap):
                 # print(13)
                 pp = pc_global[:,i*depth.shape[1]+j]
                 if self.pose_type == "mat":
-                    pp[2] += self.camera_height #!#!#!#!#!
-                h = pp[2]
-                x,y = pos2grid_id(self.gs,self.cs,pp[0],pp[1])
+                    pp[1] += self.camera_height #!#!#!#!#!
+                h = pp[1]
+                x,y = pos2grid_id(self.gs,self.cs,pp[0],pp[2])
                 # print(15)
-                if h > self.max_height: continue #self.max_height: continue #!
+                if h > self.max_height: continue #self.max_height: continue #!?
                 if h > self.color_top_down_height[y,x]:
                     # print(h)
                     self.color_top_down[y,x] = rgb[i,j,:]
@@ -663,7 +664,7 @@ class SeemMap_bbox(SeemMap):
     
     def _init_map(self):
         if self.bool_submap:
-            self.color_top_down_height = np.zeros((self.gs, self.gs), dtype=np.float32) #-(self.camera_height + 1) * np.ones((self.gs, self.gs), dtype=np.float32)
+            self.color_top_down_height = -10 * np.ones((self.gs, self.gs), dtype=np.float32) #-(self.camera_height + 1) * np.ones((self.gs, self.gs), dtype=np.float32)
             self.color_top_down = np.zeros((self.gs, self.gs, 3), dtype=np.uint8)
             self.obstacles = np.ones((self.gs, self.gs), dtype=np.uint8)
             self.weight = np.zeros((self.gs, self.gs), dtype=np.float32)

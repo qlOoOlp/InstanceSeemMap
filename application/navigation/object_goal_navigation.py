@@ -18,6 +18,10 @@ def main() -> None:
     object_categories = parse_object_goal_instruction(instr)
     print(f"instruction: {instr}")
     robot.empty_recorded_actions()
+    # init_pose = np.array([[1.0, 0.0, 0.0, 0.37611164209252],
+    #                         [0.0, 1.0, 0.0, 0.2843499183654785],
+    #                         [0.0, 0.0, 1.0, 0.724077207991911],
+    #                         [0.0, 0.0, 0.0, 1.0]])
     init_pose = np.array([[1.0, 0.0, 0.0, 8.37611164209252],
                             [0.0, 1.0, 0.0, -1.2843499183654785],
                             [0.0, 0.0, 1.0, 7.724077207991911],
@@ -25,8 +29,10 @@ def main() -> None:
     robot.set_agent_state(init_pose) #! np.arrray()
     for cat_i, cat in enumerate(object_categories):
         print(f"Navigating to category {cat}")
-        actions_list = robot.move_to_object(300)
+        actions_list = robot.move_to_object(3)
     recorded_actions_list = robot.get_recorded_actions()
+    print("\n\n\n\\n\n")
+    print(recorded_actions_list)
     robot.set_agent_state(robot.get_agent_tf())
     for action in recorded_actions_list:
         robot.test_step(robot.sim, action, vis=config.nav.vis)

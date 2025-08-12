@@ -2,8 +2,8 @@ habitat_dir: "/home/vlmap_RCI/Data/simulation_dataset/mp3d/"
 data_dir: "/home/vlmap_RCI/Data/"
 data_type: "habitat_sim"
 dataset_type: "mp3d"
-scene_id: "5LpN3gDmAk7_4"
-version: "finR"
+scene_id: "2t7WUuJeko7_2"
+version: "final_test"
 map_type: "vlmap"
 pose_info:
   pose_type: mobile_base # mobile_base, camera_base
@@ -18,13 +18,15 @@ pose_info:
 # cam_calib_mat: [540, 0, 540, 0, 540, 360, 0, 0, 1]
 grid_size: 2000
 cell_size: 0.025
-
+use_semantic_obstacles: True
 
 potential_obstacle_names: null
 obstacle_names: null
 # depth_sample_rate: 100
-# dilate_iter: 3
-# gaussian_sigma: 1.0
+dilate_iter: 3 # 3
+erode_iter: 3
+gaussian_sigma: 1.0
+gaussian_threshold: 0.7
 # customize_obstacle_map: False
 
 

@@ -51,7 +51,7 @@ def parse_args():
                         help="Version name to append to the output map name (e.g., grid_lseg_v1.npy)")
     if args.data_type == "habitat_sim":
         parser.add_argument("--dataset-type", type=str, default="mp3d",
-                        choices=["mp3d","replica","scannet","Replica"],help="Dataset type to use (Default: mp3d)")
+                        choices=["mp3d","replica","scannet","Replica", "hm3dsem"],help="Dataset type to use (Default: mp3d)")
         parser.add_argument("--pose-type", type=str, default="quat",
                             choices=["mat","quat"], help="Type of position to use (Default: quat)")
     else:
@@ -63,7 +63,7 @@ def parse_args():
         parser.add_argument("--threshold-confidence", type=float, default=0.9,
                             help="Threshold of confidence score for SEEM (Default: 0.5)")
         parser.add_argument("--seem-type", type=str, default="base",
-                            choices=["base","obstacle","tracking","bbox","dbscan","floodfill","bbox4hovsg"],
+                            choices=["base","obstacle","tracking","bbox","dbscan","floodfill","bbox4hovsg", "bbox4hm3d", "bbox4hm3d22"],
                             help="Type of SEEM to use (Default: base)")
         parser.add_argument("--downsampling-ratio",type=float, default=1,
                             help="Downsampling ratio for SEEM input RGB image (Default: 1)")
@@ -93,7 +93,7 @@ def parse_args():
                                 help="Threshold of pixel size for SEEM feature (Default: 100)")
             parser.add_argument("--no-postprocessing", action="store_false",
                                 help="Do not apply postprocessing to the SEEM feature map")
-            parser.add_argument("--max-height", type=float, default=3,
+            parser.add_argument("--max-height", type=float, default=3, #!3 #!2
                                 help="Maximum height of the instance [m] (Default: 0.5)")
             parser.add_argument("--not-using-size", action="store_false",
                                 help="Use size information for SEEM feature")
@@ -130,7 +130,7 @@ def save_args(args):
     if not os.path.exists(args.img_save_dir):
         FileNotFoundError(f"Invalid scene ID: {args.scene_id}")
     param_save_dir = os.path.join(args.img_save_dir, 'map')
-    param_save_dir = os.path.join(param_save_dir, f'{args.scene_id}_{args.version}')
+    param_save_dir = os.path.join(param_save_dir, f'{args.scene_id}_{args.version}','01buildFeatMap')
     print(param_save_dir)
     os.makedirs(param_save_dir, exist_ok=True)
     # if not os.path.exists(param_save_dir):
@@ -157,12 +157,15 @@ def parse_args_indexing_map():
     parser.add_argument("--data-type", type=str, default="habitat_sim",
                         choices=["habitat_sim", "rtabmap"], help="Select data type to use (Default: habitat_sim)")
     parser.add_argument("--dataset-type", type=str,default="mp3d",
-                        choices=["mp3d","replica","scannet"],help="Dataset type to use (Default: mp3d)")
+                        choices=["mp3d","replica","scannet", "Replica", "hm3dsem"],help="Dataset type to use (Default: mp3d)")
     parser.add_argument("--scene-id", type=str, default="2t7WUuJeko7_2",
                         help="Scene name to use (Default: 2t7WUuJeko7_2)")
     parser.add_argument("--version", type=str, default="seem",
                         help="Version name to append to the output map name (e.g., grid_lseg_v1.npy)")
-    parser.add_argument('--obstacle-items', nargs='+', type=str, default=["picture","cabinet","shelving","curtain","mirror","blinds"], help='List of obastacles without ["wall", "window", "door"]')
+    parser.add_argument('--room-items', nargs='+', type=str, default=["picture","cabinet","shelving","curtain","mirror","blinds"], help='List of obastacles without ["wall", "window", "door"]')
+    parser.add_argument("--obstacle-items", nargs='+', type=str, default=['wall','chair','table','window','stairs','other','cabinet','sofa','bed','curtain','chest_of_drawers','sink','fireplace','stool','bathtub','counter'])
+    parser.add_argument("--max-obs-height", type=float, default=3,
+                        help="Maximum height of the instance [m] (Default: 0.5)")
     # parser.add_argument("--visualize", action="store_true",
     #                     help="Visualize the map")
     # parser.add_argument("--save-instance-map", action="store_true",
@@ -195,7 +198,7 @@ def parse_args_roomseg():
     parser.add_argument("--data-type", type=str, default="habitat_sim",
                         choices=["habitat_sim", "rtabmap"], help="Select data type to use (Default: habitat_sim)")
     parser.add_argument("--dataset-type", type=str,default="mp3d",
-                        choices=["mp3d","replica","scannet"],help="Dataset type to use (Default: mp3d)")
+                        choices=["mp3d","replica","scannet", "hm3dsem"],help="Dataset type to use (Default: mp3d)")
     parser.add_argument("--scene-id", type=str, default="2t7WUuJeko7_2",
                         help="Scene name to use (Default: 2t7WUuJeko7_2)")
     parser.add_argument("--version", type=str, default="seem",#"room_seg1_floor_prior",

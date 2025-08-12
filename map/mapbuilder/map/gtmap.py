@@ -23,13 +23,17 @@ class gtMap(Map):
         self.depth_sample_rate = self.config["depth_sample_rate"]
         self.min_depth = self.config["min_depth"]
         self.max_depth = self.config["max_depth"]
+        self.rot_map = self.config["no_rot_map"]
 
     def processing(self):
         print("Processing data...")
-        b_pos, b_rot = self.datamanager.get_init_pose()
-        base_pose = np.eye(4)
-        base_pose[:3, :3] = b_rot
-        base_pose[:3, 3] = b_pos.reshape(-1)
+        if self.pose_type == "mat":
+            base_pose = self.datamanager.get_init_pose()
+        else:
+            b_pos, b_rot = self.datamanager.get_init_pose()
+            base_pose = np.eye(4)
+            base_pose[:3, :3] = b_rot
+            base_pose[:3, 3] = b_pos.reshape(-1)
         # print(base_pose)
         self.init_base_tf = base_pose
         self.base_transform = np.array([[0,0,-1,0],[-1,0,0,0],[0,1,0,0],[0,0,0,1]])
@@ -77,7 +81,7 @@ class gtMap(Map):
                     self.gt[y,x] = semantic_v
                 if p[2] < 1e-4:#self.camera_height:
                     continue
-                self.obstacles[y,x] = 1
+                self.obstacles[y,x] = 0
             pbar.update(1)
         
     def postprocessing(self):
@@ -93,13 +97,18 @@ class gtMap(Map):
         self.color_top_down_height = np.zeros((self.gs, self.gs), dtype=np.float32) #(self.camera_height + 1) * np.ones((self.gs, self.gs), dtype=np.float32)
         self.color_top_down = np.zeros((self.gs, self.gs, 3), dtype=np.uint8)
         self.gt = np.zeros((self.gs, self.gs), dtype=int)
-        self.obstacles = np.zeros((self.gs, self.gs), dtype=np.uint8)
+        self.obstacles = np.ones((self.gs, self.gs), dtype=np.uint8)
     
     def start_map(self):
         self._init_map()
         self.save_map()
     
     def save_map(self):
-        self.datamanager.save_map(color_top_down=self.color_top_down,
-                                  grid=self.gt,
-                                  obstacles=self.obstacles)
+        if self.rot_map:
+            self.datamanager.save_map(color_top_down=np.rot90(self.color_top_down,k=1),
+                                    grid=np.rot90(self.gt,k=1),
+                                    obstacles=np.rot90(self.obstacles,k=1))
+        else:
+            self.datamanager.save_map(color_top_down=self.color_top_down,
+                                    grid=self.gt,
+                                    obstacles=self.obstacles)

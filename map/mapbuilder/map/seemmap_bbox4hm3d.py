@@ -22,7 +22,7 @@ from map.mapbuilder.map.seemmap import SeemMap
 from map.mapbuilder.utils.datamanager import DataManager, DataManager4Real
 from map.mapbuilder.utils.preprocessing import IQR, depth_filtering
 
-class SeemMap_bbox(SeemMap):
+class SeemMap_bbox4hm3d(SeemMap):
     def __init__(self, config:DictConfig):
         super().__init__(config)
         self.bool_submap = self.config["no_submap"]
@@ -55,9 +55,9 @@ class SeemMap_bbox(SeemMap):
         # print(self.datamanager.get_init_pose())
         # b_pos, b_rot = self.datamanager.get_init_pose()
         if self.pose_type == "mat":
-            self.base2cam_tf = self.datamanager.get_init_pose()
-            self.datamanager.rectification_matrix = self.base2cam_tf[:3,:3] #!#!#!#!#!#!#!#!#
-            self.datamanager.rectification_matrix = np.linalg.inv(self.datamanager.rectification_matrix) #!#!#!#!#!#!#!#!#!#!#!#
+            base_pose = self.datamanager.get_init_pose()
+            # self.datamanager.rectification_matrix = self.base2cam_tf[:3,:3] #!#!#!#!#!#!#!#!#
+            # self.datamanager.rectification_matrix = np.linalg.inv(self.datamanager.rectification_matrix) #!#!#!#!#!#!#!#!#!#!#!#
         else:
             b_pos, b_rot = self.datamanager.get_init_pose()
             base_pose = np.eye(4)
@@ -67,20 +67,20 @@ class SeemMap_bbox(SeemMap):
             # base_pose[:3, :3] = b_rot
             # base_pose[:3, 3] = b_pos.reshape(-1)
             # print(base_pose)
-            self.init_base_tf = base_pose
-            self.base_transform = np.array([[1,0,0,0],[0,0,1,0],[0,1,0,0],[0,0,0,1]])#!([[0,0,-1,0],[-1,0,0,0],[0,1,0,0],[0,0,0,1]])#([[1,0,0,0],[0,0,1,0],[0,1,0,0],[0,0,0,1]])#([[0,0,-1,0],[-1,0,0,0],[0,1,0,0],[0,0,0,1]])
-            # print(self.init_base_tf)
-            self.init_base_tf = self.base_transform @ self.init_base_tf @ np.linalg.inv(self.base_transform)
-            # print(self.init_base_tf)
-            self.inv_init_base_tf = np.linalg.inv(self.init_base_tf)
-            self.base2cam_tf = np.eye(4)
-            self.base2cam_tf[:3,:3] = self.datamanager.rectification_matrix
-            self.base2cam_tf[1,3] = self.camera_height
-            # self.base2cam_tf = np.array([[1,0,0,0],[0,-1,0,1.5],[0,0,-1,0],[0,0,0,1]])
-            # print(self.base2cam_tf)
-            # raise Exception("sdfdsfsdf")
-            self.init_cam_tf = self.init_base_tf @ self.base2cam_tf
-            self.inv_init_cam_tf = np.linalg.inv(self.init_cam_tf)
+        self.init_base_tf = base_pose
+        self.base_transform = np.array([[0,0,-1,0],[-1,0,0,0],[0,1,0,0],[0,0,0,1]])#([[1,0,0,0],[0,0,1,0],[0,1,0,0],[0,0,0,1]])#!([[0,0,-1,0],[-1,0,0,0],[0,1,0,0],[0,0,0,1]])#([[1,0,0,0],[0,0,1,0],[0,1,0,0],[0,0,0,1]])#([[0,0,-1,0],[-1,0,0,0],[0,1,0,0],[0,0,0,1]])
+        # print(self.init_base_tf)
+        self.init_base_tf = self.base_transform @ self.init_base_tf @ np.linalg.inv(self.base_transform)
+        # print(self.init_base_tf)
+        self.inv_init_base_tf = np.linalg.inv(self.init_base_tf)
+        self.base2cam_tf = np.eye(4)
+        self.base2cam_tf[:3,:3] = self.datamanager.rectification_matrix
+        self.base2cam_tf[1,3] = self.camera_height
+        # self.base2cam_tf = np.array([[1,0,0,0],[0,-1,0,1.5],[0,0,-1,0],[0,0,0,1]])
+        # print(self.base2cam_tf)
+        # raise Exception("sdfdsfsdf")
+        self.init_cam_tf = self.init_base_tf @ self.base2cam_tf
+        self.inv_init_cam_tf = np.linalg.inv(self.init_cam_tf)
 
 
         # print(self.base2cam_tf)
@@ -93,18 +93,19 @@ class SeemMap_bbox(SeemMap):
             # print("start")
             # print(1)
             rgb, depth, pose = self.datamanager.data_getter()
-            if self.pose_type == "mat":
-                # pose[:3,:3] = pose[:3,:3]#@ self.datamanager.rectification_matrix #!#!#!#!#!
-                tf_list.append(pose)
-                if len(tf_list) == 1:
-                    init_tf_inv = np.linalg.inv(tf_list[0])
-                # tf = init_tf_inv @ pose
-                tf = pose
-            else:
-                pose2 = np.eye(4)
-                pose2[:3, :3] = pose[1].copy()# @ self.datamanager.rectification_matrix#!#!#!#!#!#!
-                pose2[:3, 3] = pose[0].copy().reshape(-1)
-                pose = pose2
+            # if self.pose_type == "mat":
+            #     # pose[:3,:3] = pose[:3,:3]#@ self.datamanager.rectification_matrix #!#!#!#!#!
+            #     tf_list.append(pose)
+            #     if len(tf_list) == 1:
+            #         init_tf_inv = np.linalg.inv(tf_list[0])
+            #     # tf = init_tf_inv @ pose
+            #     tf = pose
+
+            # else:
+            #     pose2 = np.eye(4)
+            #     pose2[:3, :3] = pose[1].copy()# @ self.datamanager.rectification_matrix#!#!#!#!#!#!
+            #     pose2[:3, 3] = pose[0].copy().reshape(-1)
+            #     pose = pose2
             # rot = rot @ self.datamanager.rectification_matrix
             # pos[1] += self.camera_height
             # if pos[1] < 0:
@@ -115,8 +116,8 @@ class SeemMap_bbox(SeemMap):
             # pose[:3, :3] = rot
             # pose[:3, 3] = pos.reshape(-1)
 
-                base_pose = self.base_transform @ pose @ np.linalg.inv(self.base_transform)
-                tf = self.inv_init_base_tf @ base_pose
+            base_pose = self.base_transform @ pose @ np.linalg.inv(self.base_transform)
+            tf = self.inv_init_base_tf @ base_pose
 
 
             # tf_list.append(pose)
@@ -153,18 +154,18 @@ class SeemMap_bbox(SeemMap):
                                               replace=False)] = True
                 pc_mask = shuffle_mask & mask
 
-                if self.pose_type == "mat":
-                    pc_global = transform_pc(pc, tf)
-                else:
-                    pc_transform = tf @ self.base_transform @ self.base2cam_tf
-                    pc_global = transform_pc(pc, pc_transform)
+                # if self.pose_type == "mat":
+                #     pc_global = transform_pc(pc, tf)
+                # else:
+                pc_transform = tf @ self.base_transform @ self.base2cam_tf
+                pc_global = transform_pc(pc, pc_transform)
             else:
-                if self.pose_type == "mat":
-                    # pc, mask = depth2pc(depth, max_depth=self.max_depth, min_depth=self.min_depth) #!#!#!#!#!#!#!#!#!#!
+                # if self.pose_type == "mat":
+                #     pc, mask = depth2pc(depth, max_depth=self.max_depth, min_depth=self.min_depth, depth_scale=1000) #!#!#!#!#!#!#!#!#!#!
 
-                    pc, mask = depth2pc(depth,intr_mat = np.array([[600, 0, 599.5],[0, 600, 339.5],[0,0,1]]), max_depth=self.max_depth, min_depth=self.min_depth, depth_scale=6553.5)  #!##!#!#!##
-                else:
-                    pc, mask = depth2pc(depth, max_depth=self.max_depth, min_depth=self.min_depth)
+                    # pc, mask = depth2pc(depth,intr_mat = np.array([[600, 0, 599.5],[0, 600, 339.5],[0,0,1]]), max_depth=self.max_depth, min_depth=self.min_depth, depth_scale=6553.5)  #!##!#!#!##
+                # else:
+                pc, mask = depth2pc(depth, depth_scale=1000)
 
                 shuffle_mask = np.zeros(pc.shape[1], dtype=bool)
                 shuffle_mask[np.random.choice(pc.shape[1],
@@ -172,11 +173,11 @@ class SeemMap_bbox(SeemMap):
                                               replace=False)] = True
                 pc_mask = shuffle_mask & mask
                 # pc_mask = mask
-                if self.pose_type == "mat":
-                    pc_global = transform_pc(pc, tf)
-                else:
-                    pc_transform = tf @ self.base_transform @ self.base2cam_tf
-                    pc_global = transform_pc(pc, pc_transform)
+                # if self.pose_type == "mat":
+                #     pc_global = transform_pc(pc, tf)
+                # else:
+                pc_transform = tf @ self.base_transform @ self.base2cam_tf
+                pc_global = transform_pc(pc, pc_transform)
 
             # print(3)
 
@@ -214,8 +215,8 @@ class SeemMap_bbox(SeemMap):
                     # print(pp)
                     if self.pose_type == "mat":
                         # print(pp[2])
-                        pp[2] += self.camera_height #!#!#!#!#!#!#!#!#!#!#!#!#!#!#!#!#
-                        # if pp[2] > self.max_height or pp[2] < 1e-4: continue #1e-4:continue #!#!#!#!#!#!#!##!#!#!#!#!
+                        # pp[2] += self.camera_height #!#!#!#!#!#!#!#!#!#!#!#!#!#!#!#!#
+                        # if pp[2] > 3 or pp[2] < 0.5: continue #1e-4:continue #!#!#!#!#!#!#!##!#!#!#!#!
                         x,y = pos2grid_id(self.gs,self.cs,pp[0],pp[1])
                         feat_map[y,x] = pp[2]
                         feat_map_bool[y,x]=True
@@ -347,20 +348,20 @@ class SeemMap_bbox(SeemMap):
                 #     raise ValueError("Depth filtering is failed")
                 # print(13)
                 pp = pc_global[:,i*depth.shape[1]+j]
-                if self.pose_type == "mat":
-                    pp[2] += self.camera_height #!#!#!#!#!
+                # if self.pose_type == "mat":
+                    # pp[2] += self.camera_height #!#!#!#!#!
                 h = pp[2]
                 x,y = pos2grid_id(self.gs,self.cs,pp[0],pp[1])
                 # print(15)
-                if h > self.max_height: continue #self.max_height: continue #!
+                # if h > self.max_height: continue #self.max_height: continue #!!!!
                 if h > self.color_top_down_height[y,x]:
                     # print(h)
                     self.color_top_down[y,x] = rgb[i,j,:]
                     self.color_top_down_height[y,x] = h
                 self.clip_grid[y, x] = (self.clip_grid[y, x] * self.weight[y, x] + clip_features) / (self.weight[y, x] + 1)
                 self.weight[y,x] += 1
-                if h < 1e-4 : continue #self.camera_height:continue #! 
-                self.obstacles[y,x]=0
+                if h > 0.5 : self.obstacles[y,x]=1 #self.camera_height:continue #!check0721
+                # self.obstacles[y,x]=0
 
     def denoising(self, mask:NDArray, min_size:int =5) -> NDArray:
         # type1. biggest one return / type2. removing small noise
@@ -665,7 +666,7 @@ class SeemMap_bbox(SeemMap):
         if self.bool_submap:
             self.color_top_down_height = np.zeros((self.gs, self.gs), dtype=np.float32) #-(self.camera_height + 1) * np.ones((self.gs, self.gs), dtype=np.float32)
             self.color_top_down = np.zeros((self.gs, self.gs, 3), dtype=np.uint8)
-            self.obstacles = np.ones((self.gs, self.gs), dtype=np.uint8)
+            self.obstacles = np.zeros((self.gs, self.gs), dtype=np.uint8)
             self.weight = np.zeros((self.gs, self.gs), dtype=np.float32)
         self.clip_grid = np.zeros((self.gs, self.gs, 512), dtype=float)
         self.grid = np.empty((self.gs,self.gs),dtype=object)

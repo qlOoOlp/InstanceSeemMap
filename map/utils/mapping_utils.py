@@ -743,7 +743,6 @@ def depth2pc(depth, fov=90, intr_mat=None, min_depth=0.1, max_depth=4, depth_sca
 
 
 
-
     # cam_mat[:2, 2] = 0
     # print(cam_mat)
     cam_mat_inv = np.linalg.inv(cam_mat)

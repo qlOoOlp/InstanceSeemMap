@@ -349,12 +349,15 @@ class DataLoader():
                     raise ValueError(f"Invalid map path: {path}")
         return result
 
-    def save_map(self, **kwargs)->None:
-        data_save_dir = os.path.join(self._output_path,"walls")
+    def save_map(self, is_walls, **kwargs)->None:
+        if is_walls:
+            data_save_dir = os.path.join(self._output_path,"walls")
+        else:
+            data_save_dir = self._output_path
         self.check_dir(data_save_dir)
         for key, value in kwargs.items():
             if type(value) == type({1:1}):
-                map_save_path = os.path.join(self._output_path, f"{key}_{self.config['version']}.pkl")
+                map_save_path = os.path.join(data_save_dir, f"{key}_{self.config['version']}.pkl")
                 with open(map_save_path, 'wb') as f:
                     pickle.dump(value, f)
                 continue

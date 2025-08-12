@@ -10,9 +10,6 @@ import tempfile
 from collections import Counter
 from skimage.transform import resize
 import matplotlib.pyplot as plt
-import clip
-import cv2
-from PIL import Image
 
 from map.seem.utils.get_feat import get_SEEM_feat
 from map.seem.base_model import build_vl_model
@@ -26,12 +23,11 @@ class SeemMap_bbox4hovsg(SeemMap):
     def __init__(self, config:DictConfig):
         super().__init__(config)
         self.bool_submap = self.config["no_submap"]
-        self.pose_type = self.config["pose_type"]
         self.bool_seemID = self.config["using_seemID"]
         self.bool_upsample = self.config["upsample"]
         self.bool_postprocess = self.config["no_postprocessing"]
         self.bool_size = self.config["not_using_size"]
-        self.pose_type = self.config["pose_type"]
+
         self.min_size_denoising_after_projection = self.config["min_size_denoising_after_projection"]
         self.threshold_pixelSize = self.config["threshold_pixelSize"]
         self.threshold_semSim = self.config["threshold_semSim"]
@@ -45,24 +41,14 @@ class SeemMap_bbox4hovsg(SeemMap):
 
     def processing(self):
 
-        clip_model, clip_preprocess = clip.load("ViT-B/32", device=self.device)
-        clip_model.eval()
-
         self.x_max, self.y_max = -1e12,-1e12
         self.x_min, self.y_min = 1e12,1e12
 
 
         print("start")
-        #! CODE for manual rectification matrix
-        # if self.pose_type == "mat":
-        #     self.base2cam_tf = self.datamanager.get_init_pose()
-        # else:
-        #     pos, rot = self.datamanager.get_init_pose()
-        #     self.base2cam_tf = np.eye(4)
-        #     self.base2cam_tf[:3, :3] = rot
-        #     self.base2cam_tf[:3, 3] = pos.reshape(3,) 
-        # self.datamanager.rectification_matrix = self.base2cam_tf[:3,:3]
-        # self.datamanager.rectification_matrix = np.linalg.inv(self.datamanager.rectification_matrix)
+        self.base2cam_tf = self.datamanager.get_init_pose()
+        self.datamanager.rectification_matrix = self.base2cam_tf[:3,:3]
+        self.datamanager.rectification_matrix = np.linalg.inv(self.datamanager.rectification_matrix)
         print(self.datamanager.rectification_matrix)
         # self.base2cam_tf[1,3] = self.camera_height
         tf_list = []
@@ -72,24 +58,13 @@ class SeemMap_bbox4hovsg(SeemMap):
             # print("start")
             # print(1)
             rgb, depth, pose = self.datamanager.data_getter()
-            if self.pose_type == "mat":
-                pose[:3,:3] = pose[:3,:3] @ self.datamanager.rectification_matrix
-            else:
-                pose2 = np.eye(4)
-                pose2[:3, :3] = pose[1].copy() @ self.datamanager.rectification_matrix
-                pose2[:3, 3] = pose[0].copy().reshape(-1)
-                pose = pose2
-            # sim data에 대해서는 필요없고 real data에 대해서는 depth image에 맞게 뭔가 조정해준 것 같아서 이거 적용여부는 결과 확인을 통해 진행할 필요있음
-            # if rgb.shape[0] != depth.shape[0] or rgb.shape[1] != depth.shape[1]:
-            #     rgb = cv2.resize(rgb, (depth.shape[1], depth.shape[0]), interpolation=cv2.INTER_AREA)
-
             # pose[:3, :3] = pose[:3, :3] @ self.datamanager.rectification_matrix
             # pose[1,3] += self.camera_height
             tf_list.append(pose)
             if len(tf_list) == 1:
                 init_tf_inv = np.linalg.inv(tf_list[0])
-            tf = init_tf_inv @ pose
-            # tf = pose
+            # tf = init_tf_inv @ pose
+            tf = pose
             # rot = rot @ self.datamanager.rectification_matrix
             # pos[1] += self.camera_height
             # if pos[1] < 0:
@@ -102,24 +77,14 @@ class SeemMap_bbox4hovsg(SeemMap):
             # if len(tf_list) == 1:
             #     init_tf_inv = np.linalg.inv(tf_list[0])
             # tf = init_tf_inv @ pose
-            image = clip_preprocess(Image.fromarray(rgb)).unsqueeze(0).to(self.device)
-
-            # pix_feats = get_lseg_feat(clip_model, rgb, labels, transform, crop_size, base_size, norm_mean, norm_std)
-            with torch.no_grad():
-                clip_features = clip_model.encode_image(image).cpu().numpy().flatten()
 
             map_idx, map_conf, embeddings, category_dict = get_SEEM_feat(self.model, rgb, self.threshold_confidence)
-                
             # print(len(embeddings))
             if map_idx is None:
                 pbar.update(1)
                 continue
 
-            # image_feature = np.zeros_like(list(embeddings.keys())[0])
-            # print(image_feature.shape)
-            # for embedding in embeddings:
-            #     image_feature += embedding
-            # image_feature /= len(embeddings)
+            # print(2)
 
             if self.bool_upsample:
                 upsampling_resolution = (depth.shape[0], depth.shape[1])
@@ -139,8 +104,7 @@ class SeemMap_bbox4hovsg(SeemMap):
                 pc_mask = shuffle_mask & mask
                 pc_global = transform_pc(pc, tf)
             else:
-                pc, mask = depth2pc(depth, max_depth=self.max_depth, min_depth=self.min_depth)
-                # pc, mask = depth2pc(depth,intr_mat = np.array([[600, 0, 599.5],[0, 600, 339.5],[0,0,1]]), max_depth=self.max_depth, min_depth=self.min_depth, depth_scale=6553.5) #, intr_mat = np.array([[600, 0, 599.5],[0, 600, 339.5],[0,0,1]])
+                pc, mask = depth2pc(depth,intr_mat = np.array([[600, 0, 599.5],[0, 600, 339.5],[0,0,1]]), max_depth=self.max_depth, min_depth=self.min_depth, depth_scale=6553.5) #, intr_mat = np.array([[600, 0, 599.5],[0, 600, 339.5],[0,0,1]])
                 shuffle_mask = np.zeros(pc.shape[1], dtype=bool)
                 shuffle_mask[np.random.choice(pc.shape[1],
                                               size=pc.shape[1] // self.depth_sample_rate,
@@ -149,6 +113,8 @@ class SeemMap_bbox4hovsg(SeemMap):
                 pc_mask = shuffle_mask & mask
                 # pc_mask = mask
                 pc_global = transform_pc(pc, tf)
+
+            # print(3)
 
             frame_mask = np.zeros_like(map_idx)
             depth_shape = depth.shape
@@ -160,7 +126,7 @@ class SeemMap_bbox4hovsg(SeemMap):
 
             # print(1)
 
-            if self.bool_submap: self.submap_processing(depth, rgb, pc, pc_global, pc_mask, clip_features)
+            if self.bool_submap: self.submap_processing(depth, rgb, pc, pc_global, pc_mask)
             # print(3-1)
             # print(2)
             feat_dict = {}
@@ -180,27 +146,17 @@ class SeemMap_bbox4hovsg(SeemMap):
                     # if depth[new_i, new_j] < self.min_depth or depth[new_i,new_j]> self.max_depth:
                     #     raise Exception("Depth filtering is failed")
                     pp = pc_global[:,new_i*depth_shape[1]+new_j]
-                #     # if pp[1] >1e-4 and pp[1] < self.max_height:
-                #     x,y = pos2grid_id(self.gs,self.cs,pp[0],pp[1])
-                #     feat_map[y,x] = pc_global[:,new_i*depth_shape[1]+new_j][2]
-                #     feat_map_bool[y,x]=True
-                # feat_map_bool = self.denoising(feat_map_bool, self.min_size_denoising_after_projection)
-                # if np.sum(feat_map_bool) < self.threshold_pixelSize: 
-                #     map_idx[map_idx == seem_id] = 0
-                #     continue
-                # feat_map[feat_map_bool == False] = 0
-                # feat_dict[seem_id] = feat_map
-                    if pp[2] >1e-4 and pp[2] < 2:
-                        x,y = pos2grid_id(self.gs,self.cs,pp[0],pp[1])
-                        feat_map[y,x] = pp[2]
-                        feat_map_bool[y,x]=True
+                    # if pp[1] >1e-4 and pp[1] < self.max_height:
+                    x,y = pos2grid_id(self.gs,self.cs,pp[0],pp[1])
+                    feat_map[y,x] = pc_global[:,new_i*depth_shape[1]+new_j][2]
+                    feat_map_bool[y,x]=True
+                # print(np.sum(feat_map_bool))
                 feat_map_bool = self.denoising(feat_map_bool, self.min_size_denoising_after_projection)
                 if np.sum(feat_map_bool) < self.threshold_pixelSize: 
                     map_idx[map_idx == seem_id] = 0
                     continue
                 feat_map[feat_map_bool == False] = 0
                 feat_dict[seem_id] = feat_map
-
 
             # print(4)
 
@@ -295,67 +251,27 @@ class SeemMap_bbox4hovsg(SeemMap):
 
 
             
-    def submap_processing(self, depth:NDArray, rgb:NDArray, pc_local: NDArray, pc_global: NDArray,pc_mask:NDArray, clip_features:NDArray):
-        # for i in range(0,depth.shape[0]):
-        #     for j in range(0,depth.shape[1]):
-        #         # if not pc_mask[i*depth.shape[1]+j]:
-        #         #     continue
-        #         pp = pc_global[:,i*depth.shape[1]+j]
-        #         h = pc_global[:,i*depth.shape[1]+j][2]# pc_local[:,i*depth.shape[1]+j][1]
-        #         # print(pp,pc_local[:,i*depth.shape[1]+j])
-        #         # raise Exception("sdf")
-        #         x,y = pos2grid_id(self.gs,self.cs,pp[0],pp[1])
-        #         # if h > self.max_height: continue
-                
-        #         # for comparing with hovsg grid map
-        #         if y < self.y_min: self.y_min = y
-        #         if y > self.y_max: self.y_max = y
-        #         if x < self.x_min: self.x_min = x
-        #         if x > self.x_max: self.x_max = x
-
-        #         if h > 2 or h < -(self.camera_height+1): continue
-
-        #         if h > self.color_top_down_height[y,x]:
-        #             # print(h)
-        #             self.color_top_down[y,x] = rgb[i,j,:]
-        #             self.color_top_down_height[y,x] = h
-        #         self.clip_grid[y, x] = (self.clip_grid[y, x] * self.weight[y, x] + clip_features) / (self.weight[y, x] + 1)
-        #         self.weight[y,x] += 1
-        #         # if h < -self.camera_height:continue
-        #         self.obstacles[y,x]=1
-        min_h = 1000000
-        max_h = -1000000
-        for i in range(0,depth.shape[0],10):
-            for j in range(0,depth.shape[1],10):
-                checking = pc_global[:,i*depth.shape[1]+j][2]
-                if checking < min_h:
-                    min_h = checking
-                if checking > max_h:
-                    max_h = checking
-                if not pc_mask[i*depth.shape[1]+j]:
-                    continue
-                if depth[i,j] < self.min_depth or depth[i,j] > self.max_depth:
-                    print(depth[i,j])
-                    print(pc_local[:,i*depth.shape[1]+j])
-                    raise ValueError("Depth filtering is failed")
-                # print(13)
+    def submap_processing(self, depth:NDArray, rgb:NDArray, pc_local: NDArray, pc_global: NDArray,pc_mask:NDArray):
+        for i in range(0,depth.shape[0]):
+            for j in range(0,depth.shape[1]):
+                # if not pc_mask[i*depth.shape[1]+j]:
+                #     continue
                 pp = pc_global[:,i*depth.shape[1]+j]
-                h = pp[2]
+                h = pc_global[:,i*depth.shape[1]+j][2]# pc_local[:,i*depth.shape[1]+j][1]
+                # print(pp,pc_local[:,i*depth.shape[1]+j])
+                # raise Exception("sdf")
                 x,y = pos2grid_id(self.gs,self.cs,pp[0],pp[1])
-                # print(15)
-                if h > 2: continue #self.max_height: continue
+                # if h > self.max_height: continue
+                if y < self.y_min: self.y_min = y
+                if y > self.y_max: self.y_max = y
+                if x < self.x_min: self.x_min = x
+                if x > self.x_max: self.x_max = x
                 if h > self.color_top_down_height[y,x]:
                     # print(h)
                     self.color_top_down[y,x] = rgb[i,j,:]
                     self.color_top_down_height[y,x] = h
-                # if h < 1e-4 : continue# self.camera_height:continue #! 
-                self.clip_grid[y, x] = (self.clip_grid[y, x] * self.weight[y, x] + clip_features) / (self.weight[y, x] + 1)
-                # self.room[y,x] = (self.room[y,x] * self.weight[y,x] + image_feature) / (self.weight[y,x] + 1)
-                self.weight[y,x] += 1
-                # print(16)
+                # if h < -self.camera_height:continue
                 self.obstacles[y,x]=1
-        # print(min_h, max_h)
-
 
     def denoising(self, mask:NDArray, min_size:int =5) -> NDArray:
         # type1. biggest one return / type2. removing small noise
@@ -562,8 +478,6 @@ class SeemMap_bbox4hovsg(SeemMap):
             self.color_top_down = np.zeros((self.gs, self.gs, 3), dtype=np.uint8)
             self.obstacles = np.zeros((self.gs, self.gs), dtype=np.uint8)
             self.weight = np.zeros((self.gs, self.gs), dtype=np.float32)
-        self.room = np.zeros((self.gs, self.gs), dtype=float)
-        self.clip_grid = np.zeros((self.gs, self.gs, 512), dtype=float)
         self.grid = np.empty((self.gs,self.gs),dtype=object)
         for i in range(self.gs):
             for j in range(self.gs):
@@ -582,11 +496,8 @@ class SeemMap_bbox4hovsg(SeemMap):
                                     obstacles=self.obstacles,
                                     weight=self.weight,
                                     instance_dict=self.instance_dict,
-                                    frame_mask_dict=self.frame_mask_dict,
-                                    clip_grid=self.clip_grid)
+                                    frame_mask_dict=self.frame_mask_dict)
         else:
             self.datamanager.save_map(grid=self.grid,
                                     instance_dict=self.instance_dict,
-                                    frame_mask_dict=self.frame_mask_dict,
-                                    room=self.room,
-                                    clip_grid=self.clip_grid)
+                                    frame_mask_dict=self.frame_mask_dict)

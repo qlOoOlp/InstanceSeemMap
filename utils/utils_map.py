@@ -3,9 +3,12 @@ import matplotlib.pyplot as plt
 from PIL import Image
 import os
 import matplotlib.patches as mpatches
+import cv2
+import open3d as o3d
+import matplotlib.cm as cm
 
 from map.utils.clip_utils import get_text_feats
-from map.utils.mapping_utils import load_map, svae_map, get_new_pallete, get_new_mask_pallete
+from map.utils.mapping_utils import load_map, save_map, get_new_pallete, get_new_mask_pallete
 
 def get_map_bbox(obstacles, obstacle_index=0):
     x_indices, y_indices = np.where(obstacles == obstacle_index)
@@ -26,7 +29,9 @@ def viz(map, title=None, is_show=True, save_path=None, save_name=None):
         if is_show:
             plt.show(block=False)
 
-def viz_map(predicts, instance, floor_mask=False, title=None, is_show=True, save_path=None, save_name=None, bool_block=False):
+def viz_map(predicts, instance, floor_mask=False, title=None, is_show=True, save_path=None, save_name=None, bool_block=False, bbox=None):
+    if bbox:
+        predicts = predicts[bbox[0]:bbox[1]+1, bbox[2]:bbox[3]+1]
     new_pallete = get_new_pallete(len(instance))
     mask, patches = get_new_mask_pallete(predicts, new_pallete, out_label_flag=True, labels=instance)
     seg = mask.convert('RGBA')
@@ -50,10 +55,6 @@ def viz_map(predicts, instance, floor_mask=False, title=None, is_show=True, save
 
     return predicts, instance
 
-
-
-
-
 def visualize_obstacles(obstacles, bbox=None, slicing=False, is_show=True, save_path=None, save_name=None):
     if bbox == None:
         if slicing:
@@ -66,7 +67,7 @@ def visualize_obstacles(obstacles, bbox=None, slicing=False, is_show=True, save_
 
 def visualize_rgb(rgb, bbox=None, is_show=True, save_path=None, save_name=None):
     if bbox:
-        obstacles = slicing_maps(obstacles, bbox)
+        rgb = slicing_maps(rgb, bbox)
     viz(rgb, title=save_name, is_show=is_show, save_path=save_path, save_name=save_name)
     return rgb
 
@@ -127,12 +128,13 @@ def get_2Dmap_ours(categories, map_data, vlm=None, bbox=None, use_avg_height=Fal
                     if use_avg_height:
                         candidate_height = instances[key]["avg_height"]
                     else: candidate_height = val[1]
-                    if threshold_l < candidate_height < threshold_h and candidate_height < max_height:
+                    if threshold_l < candidate_height < threshold_h and candidate_height > max_height:
                         max_height = candidate_height
                         candidate_val = candidate
                 grid_2d[i,j] = candidate_val
         return viz_map(grid_2d, categories, floor_mask=floor_mask, title=save_name, is_show=is_show, save_path=save_path, save_name=save_name)
     else:
+        grid_2d = np.zeros(grid.shape, dtype=int)
         id_list = []
         instance_feat = []
         for i in range(grid.shape[0]):
@@ -151,26 +153,26 @@ def get_2Dmap_ours(categories, map_data, vlm=None, bbox=None, use_avg_height=Fal
                     if use_avg_height:
                         candidate_height = instances[key]["avg_height"]
                     else: candidate_height = val[1]
-                    if threshold_l < candidate_height < threshold_h and candidate_height < max_height:
+                    if threshold_l < candidate_height < threshold_h and candidate_height > max_height:
                         max_height = candidate_height
                         candidate_val = candidate
                 grid_2d[i,j] = candidate_val
         return viz_map(grid_2d, categories, floor_mask=floor_mask, title=save_name, is_show=is_show, save_path=save_path, save_name=save_name)
 
-def visualize_2Dmap_cat(vlm_type, vlm, categories, map_data, bbox=None, is_show=True, use_avg_height = False, save_path=None, save_name=None):
+def visualize_2Dmap_cat(vlm_type, vlm, categories, map_data, bbox=None, is_show=True, use_avg_height = False, save_path=None, save_name=None, floor_mask=True):
     # Function for visualize 2D map
     if vlm_type == "ours":
-        map, categories = get_2Dmap_ours(categories=categories, map_data=map_data, vlm=vlm, bbox=bbox, is_show=is_show, use_avg_height=use_avg_height, save_path=save_path, save_name=save_name)
+        map, categories = get_2Dmap_ours(categories=categories, map_data=map_data, vlm=vlm, bbox=bbox, is_show=is_show, use_avg_height=use_avg_height, save_path=save_path, save_name=save_name, floor_mask=floor_mask)
     else:
-        map, categoriesq = get_2Dmap(categories=categories, map_data=map_data, vlm_type=vlm_type, vlm=vlm, bbox=bbox, is_show=is_show, save_path=save_path, save_name=save_name)
+        map, categories = get_2Dmap(categories=categories, map_data=map_data, vlm_type=vlm_type, vlm=vlm, bbox=bbox, is_show=is_show, save_path=save_path, save_name=save_name, floor_mask=floor_mask)
     return map, categories
 
-def visualize_2Dmap_categorized(vlm_type, map_data, bbox=None, is_show=True, use_avg_height = False, save_path=None, save_name=None):
+def visualize_2Dmap_categorized(vlm_type, categories, map_data, bbox=None, is_show=True, use_avg_height = False, save_path=None, save_name=None, floor_mask=True):
     # Function for visualize 2D map
     if vlm_type == "ours":
-        map, categories = get_2Dmap_ours(categories=categories, map_data=map_data, bbox=bbox, is_categorized=True, use_avg_height=use_avg_height, is_show=is_show, save_path=save_path, save_name=save_name)
+        map, categories = get_2Dmap_ours(categories=categories, map_data=map_data, bbox=bbox, is_categorized=True, use_avg_height=use_avg_height, is_show=is_show, save_path=save_path, save_name=save_name, floor_mask=floor_mask)
     else:
-        map, categoriesq = get_2Dmap(categories=categories, map_data=map_data, bbox=bbox, is_categorized=True, is_show=is_show, save_path=save_path, save_name=save_name)
+        map, categories = get_2Dmap(categories=categories, map_data=map_data, bbox=bbox, is_categorized=True, is_show=is_show, save_path=save_path, save_name=save_name, floor_mask=floor_mask)
     return map, categories
 
 def visualize_2Dmap_inst_in_cat(categories, map_data, bbox=None, is_show=True, save_path=None, save_name=None):
@@ -179,39 +181,267 @@ def visualize_2Dmap_inst_in_cat(categories, map_data, bbox=None, is_show=True, s
     cat_maps = []
     if bbox:
         grid = grid[bbox[0]:bbox[1]+1, bbox[2]:bbox[3]+1]
-
     for i, cat in enumerate(categories):
-        if cat in ["void", "floor"]:
-            continue
+        # if cat in ["void", "floor"]:
+        #     continue
         instance_map = np.zeros(grid.shape, dtype=int)
-        instance_keys = []
+        instance_keys = ["void"]
+        inst_id = 1
         for inst_key, inst_item in instances.items():
             if inst_item['category'] == cat:
                 inst_mask = inst_item['mask']
                 if bbox:
                     inst_mask = inst_mask[bbox[0]:bbox[1]+1, bbox[2]:bbox[3]+1]
-                instance_map[inst_mask==1] = inst_key
+                if np.sum(inst_mask) == 0: continue
+                instance_map[inst_mask==1] = inst_id
                 instance_keys.append(inst_key)
+                inst_id += 1
         if len(instance_keys) == 0: continue
         cat_map = viz_map(instance_map, instance_keys, title=f"{cat} instances", is_show=is_show, save_path=save_path, save_name=save_name+f"_{cat}_instances", bool_block=True)
         cat_maps.append(cat_map)
     return cat_maps, categories
 
-def visualize_map(map_data, bbox=None, is_show=True, save_path=None, save_name=None):
-    # Function for visualize our map as 2.5D type
-    pass
+# def visualize_map(map_data, bbox=None, is_show=True, save_path=None, save_name=None):
+#     # Function for visualize our map as 2.5D type
+#     grid, instances = map_data
+#     if bbox:
+#         grid = grid[bbox[0]:bbox[1]+1, bbox[2]:bbox[3]+1]
+#     print(grid.shape)
+#     all_points = []
+#     all_colors = []
+#     # kyaaa = []
+#     # for obj_id, obj_info in instances.items():
+#     #     mask = obj_info['mask']  # (H, W), bool
+#     #     avg_height = obj_info['avg_height']  # float
+#     #     kyaaa.append(avg_height)
 
-def visualize_instances(rgb, instances, map_data, bbox=None, is_show=True, save_path=None, save_name=None):
+#     # print(max(kyaaa), min(kyaaa))
+#     # raise Exception("stop")
+#     z_scale= 20
+#     rng = np.random.default_rng(seed=42)  # 색상 고정 시드
+
+#     for obj_id, obj_info in instances.items():
+#         mask = obj_info['mask']  # (H, W), bool
+#         avg_height = obj_info['avg_height'] * z_scale # float
+#         if bbox:
+#             mask = mask[bbox[0]:bbox[1]+1, bbox[2]:bbox[3]+1]
+#         # mask가 True인 위치의 (y, x) 좌표 가져오기
+#         ys, xs = np.nonzero(mask)
+#         # if xs.shape[0] == 0: continue
+#         # if ys.shape[0] == 0: continue
+
+#         # 포인트 (x, y, z) 만들기
+#         zs = np.full_like(xs, avg_height+5.0, dtype=float)
+
+#         points = np.stack([xs, ys, zs], axis=1)  # shape (N, 3)
+#         all_points.append(points)
+
+#         # 색상 랜덤 부여 (고정된 색상 사용)
+#         color = rng.uniform(0, 1, size=3)
+#         colors = np.tile(color, (points.shape[0], 1))
+#         all_colors.append(colors)
+
+#     # 모든 객체 포인트 concat
+#     all_points = np.concatenate(all_points, axis=0)
+#     all_colors = np.concatenate(all_colors, axis=0)
+
+#     # Open3D PointCloud 만들기
+#     pcd = o3d.geometry.PointCloud()
+#     pcd.points = o3d.utility.Vector3dVector(all_points)
+#     pcd.colors = o3d.utility.Vector3dVector(all_colors)
+
+#     # 시각화
+#     o3d.visualization.draw_geometries([pcd],
+#                                       window_name='Object 3D Map',
+#                                       width=800,
+#                                       height=600,
+#                                       point_show_normal=False)
+    
+
+
+
+
+
+
+# def visualize_map(
+#     map_data,
+#     bbox=None,
+#     is_show=True,
+#     save_path=None,
+#     save_name=None,
+#     out_range=50.0,
+#     offset=5.0,
+#     use_bars=False
+# ):
+#     grid, instances = map_data
+#     if bbox is not None:
+#         grid = grid[bbox[0]:bbox[1]+1, bbox[2]:bbox[3]+1]
+
+#     # ---------------- 높이 정규화용 배열 ----------------
+#     heights = np.array(
+#         [float(np.squeeze(info['avg_height']))  # ★ 리스트·배열 → float
+#          for info in instances.values()],
+#         dtype=float
+#     )
+#     h_min, h_max = heights.min(), heights.max()
+#     if h_max == h_min:
+#         h_max += 1e-6
+
+#     def scaled_height(h):
+#         h = float(np.squeeze(h))               # ★ 추가 캐스팅
+#         return ((h - h_min) / (h_max - h_min)) * out_range + offset
+
+#     cmap = cm.get_cmap('viridis')
+
+#     all_points, all_colors = [], []
+#     extra_geoms = []
+
+#     for obj_id, obj_info in instances.items():
+#         mask = obj_info['mask']
+#         if bbox is not None:
+#             mask = mask[bbox[0]:bbox[1]+1, bbox[2]:bbox[3]+1]
+
+#         ys, xs = np.nonzero(mask)
+#         if xs.size == 0:
+#             continue
+
+#         z_val = scaled_height(obj_info['avg_height'])
+#         zs = np.full_like(xs, z_val, dtype=float)
+
+#         all_points.append(np.stack([xs, ys, zs], axis=1))
+
+#         norm_h = (float(np.squeeze(obj_info['avg_height'])) - h_min) / (h_max - h_min)
+#         color = cmap(norm_h)[:3]
+#         all_colors.append(np.tile(color, (xs.size, 1)))
+
+#         if use_bars:
+#             x_c, y_c = xs.mean(), ys.mean()
+#             bar_pts = o3d.utility.Vector3dVector([[x_c, y_c, 0], [x_c, y_c, z_val]])
+#             line = o3d.geometry.LineSet(
+#                 points=bar_pts,
+#                 lines=o3d.utility.Vector2iVector([[0, 1]])
+#             )
+#             line.colors = o3d.utility.Vector3dVector([[1, 0, 0]])
+#             extra_geoms.append(line)
+
+#     if not all_points:
+#         print("포인트가 없습니다.")
+#         return
+
+#     pcd = o3d.geometry.PointCloud()
+#     pcd.points = o3d.utility.Vector3dVector(np.concatenate(all_points, axis=0).astype(np.float32))
+#     pcd.colors = o3d.utility.Vector3dVector(np.concatenate(all_colors, axis=0).astype(np.float32))
+
+#     if is_show:
+#         o3d.visualization.draw_geometries([pcd, *extra_geoms],
+#             window_name='Object 3D Map',
+#             width=900, height=700,
+#             point_show_normal=False
+#         )
+
+#     if save_path is not None and save_name is not None:
+#         o3d.io.write_point_cloud(f"{save_path}/{save_name}.ply", pcd)
+
+
+def visualize_map(map_data, bbox=None, is_show=True, save_path=None, save_name=None, out_range=50.0, offset=5.0, use_bars=False, color_by_height=False):
+    grid, instances = map_data
+    if bbox is not None:
+        grid = grid[bbox[0]:bbox[1] + 1, bbox[2]:bbox[3] + 1]
+
+    # ----- 높이 정규화 -----
+    heights = np.array(
+        [float(np.squeeze(i["avg_height"])) for i in instances.values()], dtype=float
+    )
+    h_min, h_max = heights.min(), heights.max()
+    if h_max == h_min:
+        h_max += 1e-6
+
+    def scaled_height(h):
+        h = float(np.squeeze(h))
+        return ((h - h_min) / (h_max - h_min)) * out_range + offset
+
+    cmap = cm.get_cmap("viridis")
+    rng = np.random.default_rng(seed=42)
+
+    all_pts, all_cols, extra_geoms = [], [], []
+
+    for obj_id, info in instances.items():
+        mask = info["mask"]
+        if bbox is not None:
+            mask = mask[bbox[0]:bbox[1] + 1, bbox[2]:bbox[3] + 1]
+
+        ys, xs = np.nonzero(mask)
+        if xs.size == 0:
+            continue
+
+        z_val = scaled_height(info["avg_height"])
+        zs = np.full_like(xs, z_val, dtype=float)
+        all_pts.append(np.stack([xs, ys, zs], axis=1))
+
+        # ----- 색상 결정 -----
+        if color_by_height:
+            norm_h = (float(np.squeeze(info["avg_height"])) - h_min) / (h_max - h_min)
+            base_color = cmap(norm_h)[:3]
+        else:
+            base_color = rng.uniform(0, 1, size=3)
+        all_cols.append(np.tile(base_color, (xs.size, 1)))
+
+        # ----- 기둥(LineSet) -----
+        if use_bars:
+            x_c, y_c = xs.mean(), ys.mean()
+            line = o3d.geometry.LineSet(
+                points=o3d.utility.Vector3dVector([[x_c, y_c, 0], [x_c, y_c, z_val]]),
+                lines=o3d.utility.Vector2iVector([[0, 1]]),
+            )
+            line.colors = o3d.utility.Vector3dVector([[1, 0, 0]])
+            extra_geoms.append(line)
+
+    if not all_pts:
+        print("포인트가 없습니다.")
+        return
+
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(
+        np.concatenate(all_pts, axis=0).astype(np.float32)
+    )
+    pcd.colors = o3d.utility.Vector3dVector(
+        np.concatenate(all_cols, axis=0).astype(np.float32)
+    )
+
+    # ----- 시각화 (창 확실히 닫기) -----
+    if is_show:
+        vis = o3d.visualization.Visualizer()
+        vis.create_window(
+            window_name="Object 3D Map", width=900, height=700, visible=True
+        )
+        vis.add_geometry(pcd)
+        for g in extra_geoms:
+            vis.add_geometry(g)
+
+        vis.run()            # 사용자가 q 누르거나 창 닫을 때까지
+        vis.destroy_window() # ← 리소스 확실히 해제
+
+    # ----- 저장 -----
+    if save_path and save_name:
+        o3d.io.write_point_cloud(f"{save_path}/{save_name}.ply", pcd)
+
+
+
+
+
+def visualize_instances(rgb, inst, map_data, bbox=None, is_show=True, save_path=None, save_name=None):
     # Function for visualize specific instances on the map
     grid, instances = map_data
+    print(f"Instance ids: {instances.keys()}")
     if bbox:
         grid = grid[bbox[0]:bbox[1]+1, bbox[2]:bbox[3]+1]
+        rgb = rgb[bbox[0]:bbox[1]+1, bbox[2]:bbox[3]+1]
     instance_map = np.zeros(grid.shape, dtype=int)
     for i in range(grid.shape[0]):
         for j in range(grid.shape[1]):
             if not grid[i,j]: continue
             for key, val in grid[i,j].items():
-                if key not in instances: continue
+                if key not in inst: continue
                 instance_map[i,j] = key
     # ----- Overlay 준비 -----
     rgb_overlay = rgb.copy().astype(float) / 255.0  # [0,1]로 정규화
@@ -244,9 +474,71 @@ def visualize_instances(rgb, instances, map_data, bbox=None, is_show=True, save_
         plt.show(block=False)
                 
 
-def visualize_heatmap(rgb, map_data, heatmap_type="simscore", bbox=None, is_show=True, save_path=None, save_name=None):
+def visualize_heatmap(vlm_type, vlm, target, rgb, map_data, heatmap_type="simscore", bbox=None, is_show=True, save_path=None, save_name=None, categories=None):
     # Function for visualize heatmap on the map
-    pass
+    grid, instances = map_data
+    if bbox:
+        grid = grid[bbox[0]:bbox[1]+1, bbox[2]:bbox[3]+1]
+        rgb = rgb[bbox[0]:bbox[1]+1, bbox[2]:bbox[3]+1]
+    if heatmap_type == 'simscore':
+        inst_key_dict = {}
+        vec_list = []
+        if not vlm:
+            raise ValueError("VLM must be provided for map visualization.")
+        if vlm_type == "lseg":
+            text_feats = get_text_feats(target, vlm, 512)
+        elif vlm_type in  ["seem", "ours"]:
+            text_feats = vlm.encode_prompt(target, task='default')
+            text_feats = text_feats.cpu().numpy()
+        norms = np.linalg.norm(text_feats, axis=1, keepdims=True)
+        # text_feats = text_feats / norms
+        for i, (key, item) in enumerate(instances.items()):
+            feat = item["embedding"]
+            feat = feat / np.linalg.norm(feat, axis=0, keepdims=True)
+            inst_key_dict[key] = i
+            vec_list.append(feat)
+        feats = np.stack(vec_list, axis=1)
+        # feats = feats/ np.linalg.norm(feats, axis=0, keepdims=True)
+        scores = text_feats @ feats
+        heatmap = np.zeros(grid.shape, dtype=np.float32)
+        for i in range(grid.shape[0]):
+            for j in range(grid.shape[1]):
+                if not grid[i,j]: continue
+                max_score = 0.0
+                for key, val in grid[i,j].items():
+                    if key in [0,1,2]: continue
+                    candidate = inst_key_dict[key]
+                    candidate_val = np.max(scores[:, candidate])
+                    if candidate_val > max_score:
+                        max_score = candidate_val
+                heatmap[i,j] = max_score
+        visualize_heatmap_2d(rgb, heatmap, title=save_name, is_show=is_show, save_path=save_path, save_name=save_name)
+    else:
+        targets = list(categories.index(t) for t in target)
+        n_cat = len(instances[1]["categories"])
+        target_scores = {}
+        for tar in targets:
+            score_dict = {}
+            for i, (key, item) in enumerate(instances.items()):
+                vall = np.where(item['categories']==tar)[0]
+                if vall < n_cat / 2:
+                    score_dict[key] = (n_cat/2-vall) / n_cat *2
+                else:
+                    score_dict[key] = 0
+            target_scores[tar] = score_dict
+        heatmap = np.zeros(grid.shape, dtype=np.float32)
+        for i in range(grid.shape[0]):
+            for j in range(grid.shape[1]):
+                if not grid[i,j]: continue
+                max_score = 0.0
+                for key, val in grid[i,j].items():
+                    if key in [0,1,2]: continue
+                    candidate_val = max(target_scores[tar][key] for tar in targets)
+                    if candidate_val > max_score:
+                        max_score = candidate_val
+                heatmap[i,j] = max_score
+        visualize_heatmap_2d(rgb, heatmap, title=save_name, is_show=is_show, save_path=save_path, save_name=save_name)
+        
 
 def visualize_room(room, bbox=None, is_show=True, save_path=None, save_name=None):
     pass
@@ -265,4 +557,31 @@ def load_maps(map_paths):
 
 def save_maps(path, map):
     for p, m in zip(path, map):
-        svae_map(p, m)
+        save_map(p, m)
+
+
+def visualize_heatmap_2d(rgb: np.ndarray, heatmap: np.ndarray, transparency: float = 0.5, title=None, is_show=True, save_path=None, save_name=None):
+    min_val = 0
+    max_val = 1
+    heatmap = (heatmap - min_val) / (max_val - min_val + 1e-8)
+    heatmap[heatmap < 0.4] = 0
+    sim_new = (heatmap * 255).astype(np.uint8)
+    heat = cv2.applyColorMap(sim_new, cv2.COLORMAP_JET)
+    heat = heat[:, :, ::-1].astype(np.float32)  # convert to RGB
+    heat_rgb = heat * transparency + rgb * (1 - transparency)
+    rgb = heat_rgb.astype(np.uint8)
+    plt.title("heatmap")
+    plt.imshow(rgb)
+    plt.axis('off')  # 축 제거 (옵션)
+    ax = plt.gca()
+    ax.legend_ = None
+
+    if title:
+        plt.title(title)
+    else:
+        plt.title("heatmap")
+
+    if save_path:
+        plt.savefig(os.path.join(save_path, f"{save_name}.png"), bbox_inches='tight', pad_inches=0.1)
+    if is_show:
+        plt.show(block=False)

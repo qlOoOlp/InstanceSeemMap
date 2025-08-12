@@ -1,0 +1,6 @@
+data_path: "/home/vlmap_RCI/Data"
+data_type: "habitat_sim"
+dataset_type : "mp3d" # "replica" 
+vlm: "ours" # "lseg" "seem" "ours"
+version: "final_test" #"b1209_ps50aft_s" # "lseg" "seem"
+scene_id: 5LpN3gDmAk7_4

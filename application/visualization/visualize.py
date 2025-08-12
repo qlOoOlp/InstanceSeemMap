@@ -8,7 +8,7 @@ def __main__():
     config = load_config("config/visualize.yaml")
     if config["save_image"]:
         output_path = os.path.join(config["data_path"],config["data_type"],config["dataset_type"],config["scene_id"],"map",f'{config["scene_id"]}_{config["version"]}')
-        viz = visualizer(config, output_path)
+        viz = visualizer(config) #, output_path)
     else:
         viz = visualizer(config)
     viz.visualize()
