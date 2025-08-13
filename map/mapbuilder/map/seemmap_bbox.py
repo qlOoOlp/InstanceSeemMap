@@ -688,7 +688,7 @@ class SeemMap_bbox(SeemMap):
                                     weight=np.rot90(self.weight, k=1),#! 3
                                     instance_dict=self.instance_dict,
                                     frame_mask_dict=self.frame_mask_dict,
-                                    clip_grid=self.clip_grid)
+                                    clip_grid=np.rot90(self.clip_grid, k=1)) #! 3
             else:
                 self.datamanager.save_map(color_top_down=self.color_top_down,
                                         grid=self.grid,
@@ -702,7 +702,7 @@ class SeemMap_bbox(SeemMap):
                 self.datamanager.save_map(grid=np.rot90(self.grid, k=1),#! 3
                                     instance_dict=self.instance_dict,
                                     frame_mask_dict=self.frame_mask_dict,
-                                    clip_grid=self.clip_grid)
+                                    clip_grid=np.rot90(self.clip_grid, k=1)) #! 3
             else:
                 self.datamanager.save_map(grid=self.grid,
                                         instance_dict=self.instance_dict,

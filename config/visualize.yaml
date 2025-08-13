@@ -2,8 +2,8 @@ data_path: "/home/vlmap_RCI/Data"
 data_type: "habitat_sim"
 dataset_type : "hm3dsem" # "replica" 
 vlm: "ours" # "lseg" "seem" "ours"
-version: "test0811mh3" #"test0721_max3_mapmin10" #"b1209_ps50aft_s" # "lseg" "seem"
-scene_id: 00877-4ok3usBNeis #00824-Dd4bFSTQ8gi
+version: "test0811mh1" #"test0721_max3_mapmin10" #"b1209_ps50aft_s" # "lseg" "seem"
+scene_id: 00861-GLAQ4DNUx5U #00824-Dd4bFSTQ8gi
 
 gt_version: "gt"
 visualize:

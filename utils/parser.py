@@ -193,8 +193,6 @@ def parse_args_indexing_map():
 
 def parse_args_roomseg():
     parser = argparse.ArgumentParser()
-    # parser.add_argument("--vlm", default="seem", type = str, choices=["lseg","seem"],
-    #                     help="Name of the vln model to use (Default: seem)")
     parser.add_argument("--data-type", type=str, default="habitat_sim",
                         choices=["habitat_sim", "rtabmap"], help="Select data type to use (Default: habitat_sim)")
     parser.add_argument("--dataset-type", type=str,default="mp3d",
@@ -222,6 +220,38 @@ def parse_args_roomseg():
     args = parser.parse_args()
     print(args)
     return args
+
+
+
+def parse_args_roomcls():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu",
+                        choices=["cuda", "cpu"], help="Select device to use (Default: cuda)")
+    parser.add_argument("--data-type", type=str, default="habitat_sim",
+                        choices=["habitat_sim", "rtabmap"], help="Select data type to use (Default: habitat_sim)")
+    parser.add_argument("--dataset-type", type=str,default="mp3d",
+                        choices=["mp3d","replica","scannet", "hm3dsem"],help="Dataset type to use (Default: mp3d)")
+    parser.add_argument("--scene-id", type=str, default="2t7WUuJeko7_2",
+                        help="Scene name to use (Default: 2t7WUuJeko7_2)")
+    parser.add_argument("--version", type=str, default="seem",#"room_seg1_floor_prior",
+                        help="Version name to append to the output map name (e.g., grid_lseg_v1.npy)")
+    
+    parser.add_argument("--clip-version", type=str, default="ViT-B/32")
+    parser.add_argument("--lang-labels", default=["void", "living room", "kitchen", "bathroom", "bedroom", "hallway"], help="Language labels for CLIP classification")
+    parser.add_argument("--thres-area", type=int, default=300, help="Minimum pixel count to consider a region")
+    parser.add_argument("--kernel-size", type=int, default=11, help="Kernel size for morphological dilation")
+
+    now_root = os.getcwd()
+    now_root = os.path.join(now_root, "Data")
+    parser.add_argument("--root-path", default = "/home/vlmap_RCI/Data/", type=str,
+                        help="Root path to use")
+    args = parser.parse_args()
+    print(args)
+    return args
+
+
+
+
 
 def parse_args_extract_captions():
     parser = argparse.ArgumentParser()
