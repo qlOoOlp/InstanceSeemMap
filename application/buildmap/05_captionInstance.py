@@ -17,7 +17,7 @@ def main():
 
     save_dir = os.path.join(config['root_path'], config['data_type'],config['dataset_type'],config['scene_id'],'map',
                  f"{config['scene_id']}_{config['version']}","05captionInstance")
-
+    check_dir(save_dir)
     captioning = caption_extractor(config, save_dir)
     captioning.process()
 

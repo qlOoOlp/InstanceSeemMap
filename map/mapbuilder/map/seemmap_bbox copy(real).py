@@ -22,7 +22,7 @@ from map.mapbuilder.map.seemmap import SeemMap
 from map.mapbuilder.utils.datamanager import DataManager, DataManager4Real
 from map.mapbuilder.utils.preprocessing import IQR, depth_filtering
 
-class SeemMap_bbox4hm3d22(SeemMap):
+class SeemMap_bbox(SeemMap):
     def __init__(self, config:DictConfig):
         super().__init__(config)
         self.bool_submap = self.config["no_submap"]
@@ -56,8 +56,8 @@ class SeemMap_bbox4hm3d22(SeemMap):
         # b_pos, b_rot = self.datamanager.get_init_pose()
         if self.pose_type == "mat":
             self.base2cam_tf = self.datamanager.get_init_pose()
-            # self.datamanager.rectification_matrix = self.base2cam_tf[:3,:3] #!#!#!#!#!#!#!#!#
-            # self.datamanager.rectification_matrix = np.linalg.inv(self.datamanager.rectification_matrix) #!#!#!#!#!#!#!#!#!#!#!#
+            self.datamanager.rectification_matrix = self.base2cam_tf[:3,:3] #!#!#!#!#!#!#!#!#
+            self.datamanager.rectification_matrix = np.linalg.inv(self.datamanager.rectification_matrix) #!#!#!#!#!#!#!#!#!#!#!#
         else:
             b_pos, b_rot = self.datamanager.get_init_pose()
             base_pose = np.eye(4)
@@ -99,7 +99,6 @@ class SeemMap_bbox4hm3d22(SeemMap):
                 if len(tf_list) == 1:
                     init_tf_inv = np.linalg.inv(tf_list[0])
                 # tf = init_tf_inv @ pose
-                pose[:3,:3] = pose[:3,:3] @ self.datamanager.rectification_matrix #!#!#!#!#!#!
                 tf = pose
             else:
                 pose2 = np.eye(4)
@@ -161,9 +160,9 @@ class SeemMap_bbox4hm3d22(SeemMap):
                     pc_global = transform_pc(pc, pc_transform)
             else:
                 if self.pose_type == "mat":
-                    pc, mask = depth2pc(depth, depth_scale=1000) #!#!#!#!#!#!#!#!#!#!
+                    # pc, mask = depth2pc(depth, max_depth=self.max_depth, min_depth=self.min_depth) #!#!#!#!#!#!#!#!#!#!
 
-                    # pc, mask = depth2pc(depth,intr_mat = np.array([[600, 0, 599.5],[0, 600, 339.5],[0,0,1]]), max_depth=self.max_depth, min_depth=self.min_depth, depth_scale=6553.5)  #!##!#!#!##
+                    pc, mask = depth2pc(depth,intr_mat = np.array([[600, 0, 599.5],[0, 600, 339.5],[0,0,1]]), max_depth=self.max_depth, min_depth=self.min_depth, depth_scale=6553.5)  #!##!#!#!##
                 else:
                     pc, mask = depth2pc(depth, max_depth=self.max_depth, min_depth=self.min_depth)
 
@@ -216,7 +215,7 @@ class SeemMap_bbox4hm3d22(SeemMap):
                     if self.pose_type == "mat":
                         # print(pp[2])
                         pp[2] += self.camera_height #!#!#!#!#!#!#!#!#!#!#!#!#!#!#!#!#
-                        # if pp[2] > 3 or pp[2] < 0.5: continue #1e-4:continue #!#!#!#!#!#!#!##!#!#!#!#!
+                        # if pp[2] > self.max_height or pp[2] < 1e-4: continue #1e-4:continue #!#!#!#!#!#!#!##!#!#!#!#!
                         x,y = pos2grid_id(self.gs,self.cs,pp[0],pp[1])
                         feat_map[y,x] = pp[2]
                         feat_map_bool[y,x]=True
@@ -689,7 +688,7 @@ class SeemMap_bbox4hm3d22(SeemMap):
                                     weight=np.rot90(self.weight, k=1),#! 3
                                     instance_dict=self.instance_dict,
                                     frame_mask_dict=self.frame_mask_dict,
-                                    clip_grid=self.clip_grid)
+                                    clip_grid=np.rot90(self.clip_grid, k=1)) #! 3
             else:
                 self.datamanager.save_map(color_top_down=self.color_top_down,
                                         grid=self.grid,
@@ -703,7 +702,7 @@ class SeemMap_bbox4hm3d22(SeemMap):
                 self.datamanager.save_map(grid=np.rot90(self.grid, k=1),#! 3
                                     instance_dict=self.instance_dict,
                                     frame_mask_dict=self.frame_mask_dict,
-                                    clip_grid=self.clip_grid)
+                                    clip_grid=np.rot90(self.clip_grid, k=1)) #! 3
             else:
                 self.datamanager.save_map(grid=self.grid,
                                         instance_dict=self.instance_dict,

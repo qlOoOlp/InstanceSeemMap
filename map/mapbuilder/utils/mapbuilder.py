@@ -142,7 +142,7 @@ class CategorizedMapBuilder():
                         self.door_mask[i,j] = 1
                     if key in others:
                         self.others_mask[i,j] = 1
-        self.dataloader.save_map(is_walls= False, categorized_instace_dict=new_instance_dict)
+        self.dataloader.save_map(is_walls= False, categorized_instance_dict=new_instance_dict)
         self.dataloader.save_map(is_walls= False, semantic_obstacles=self.new_mask)
         obstacles_pil = Image.fromarray(self.new_mask)#[self.xmin:self.xmax+1, self.ymin:self.ymax+1])
 

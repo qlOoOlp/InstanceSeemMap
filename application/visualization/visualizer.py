@@ -185,7 +185,7 @@ class visualizer():
             grid_path = os.path.join(self.target_dir,"01buildFeatMap", f"grid_{self.version}.npy")
             self.grid = load_map(grid_path)
             if self.using_categorized_map:
-                instance_dict_path = os.path.join(self.target_dir,"02buildCatMap", f"categorized_instace_dict_{self.version}.pkl")
+                instance_dict_path = os.path.join(self.target_dir,"02buildCatMap", f"categorized_instance_dict_{self.version}.pkl")
                 with open(instance_dict_path, 'rb') as f:
                     self.instance_dict = pkl.load(f)
             else:

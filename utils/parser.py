@@ -260,7 +260,7 @@ def parse_args_extract_captions():
     parser.add_argument("--data-type", type=str, default="habitat_sim",
                         choices=["habitat_sim", "rtabmap"], help="Select data type to use (Default: habitat_sim)")
     parser.add_argument("--dataset-type", type=str,default="mp3d",
-                        choices=["mp3d","replica","scannet"],help="Dataset type to use (Default: mp3d)")
+                        choices=["mp3d","replica","scannet", "hm3dsem"],help="Dataset type to use (Default: mp3d)")
     parser.add_argument("--scene-id", type=str, default="2t7WUuJeko7_2",
                         help="Scene name to use (Default: 2t7WUuJeko7_2)")
     parser.add_argument("--version", type=str, default="seem",#"room_seg1_floor_prior",

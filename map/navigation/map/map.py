@@ -42,7 +42,7 @@ class Map:
         else: self.obstacles_map = np.load(os.path.join(self.map_dir,"01buildFeatMap",f"obstacles_{self.map_config['version']}.npy" ))
         self.obstacles_map = self._dilate_map(self.obstacles_map, dilate_iter=self.map_config["dilate_iter"], erode_iter=self.map_config['erode_iter'], gaussian_sigma=self.map_config["gaussian_sigma"], threshold=self.map_config['gaussian_threshold']) #! obstacle map!!!
         self.rgb_topdown = np.load(os.path.join(self.map_dir,"01buildFeatMap",f"color_top_down_{self.map_config['version']}.npy" ))
-        with open(os.path.join(self.map_dir,"02buildCatMap", f"categorized_instace_dict_{self.map_config['version']}.pkl"), "rb") as f:
+        with open(os.path.join(self.map_dir,"02buildCatMap", f"categorized_instance_dict_{self.map_config['version']}.pkl"), "rb") as f:
             self.instance_dict = pickle.load(f)
         self.grid_map = np.load(os.path.join(self.map_dir,"01buildFeatMap", f"grid_{self.map_config['version']}.npy"), allow_pickle=True)
 
