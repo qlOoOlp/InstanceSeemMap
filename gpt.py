@@ -169,7 +169,7 @@ class GPTPrompt:
         reference_text = """
                         Ex1. The dark wood cabinet, likely walnut or mahogany, features a glossy finish, intricate carvings, and sturdy construction, suggesting high-quality craftsmanship from the late 19th or early 20th century.
                         Ex2. The large dark wood door, featuring an aged finish and glass panels, stands prominently in the hallway, adding character and elegance.
-                        Ex3. TThe flat-screen TV monitor with a dark brown wooden frame is mounted on the wall, providing a modern touch to the hallway.
+                        Ex3. The flat-screen TV monitor with a dark brown wooden frame is mounted on the wall, providing a modern touch to the hallway.
                         """
         
         if query_type == "object":
