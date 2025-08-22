@@ -1,4 +1,4 @@
-import os
+import os, re
 import json
 import numpy as np
 import pickle
@@ -42,20 +42,46 @@ class caption_extractor():
             self.instance_dict = pickle.load(f)
         self.obs = np.load(os.path.join(self.data_dir, f"01buildFeatMap", f"obstacles_{self.version}.npy"))
         self.check_boundary()
+        # self.room = np.load(os.path.join(self.data_dir, "04classificateRoom_labels", "room_map.npy"))
+        # room_info_path = os.path.join(self.data_dir, "04classificateRoom_labels", "room_info.json")
         self.room = np.load(os.path.join(self.data_dir, "04classificateRoom", "room_map.npy"))
         room_info_path = os.path.join(self.data_dir, "04classificateRoom", "room_info.json")
+
         with open(room_info_path, "r", encoding="utf-8") as f:
             room_dict = json.load(f)
         self.room_dict = {int(k): v for k, v in room_dict.items()}
         self.image_root_path = os.path.join(self.root_dir, self.config["data_type"], self.config["dataset_type"], self.config["scene_id"], "rgb")
         self.inst_dict = {}
 
+    def clean_caption(self, text: str, max_sentences: int = 2, max_chars: int = 200) -> str:
+        if not text:
+            return ""
+
+        # 1. 이상한 문자 제거 (non-breaking space, 유니코드 dash 등)
+        text = text.encode("utf-8", "ignore").decode("utf-8")  # 깨진 바이트 제거
+        text = re.sub(r'[\xa0–—\-]+', '-', text)  # 여러 개 dash/nbsp -> 일반 "-"
+        text = re.sub(r'\s+', ' ', text).strip()  # 불필요한 공백 정리
+
+        # 2. 문장 단위로 자르기
+        sentences = re.split(r'(?<=[.!?])\s+', text)
+        sentences = [s.strip() for s in sentences if s.strip()]
+
+        # 3. 문장 개수 제한
+        sentences = sentences[:max_sentences]
+
+        # 4. 전체 길이 제한
+        result = " ".join(sentences)
+        if len(result) > max_chars:
+            result = result[:max_chars].rsplit(' ', 1)[0] + "..."
+
+        return result
+
     def process(self):
         self.load_data()
         for i, (inst_id, inst_val) in enumerate(tqdm(self.instance_dict.items(), desc="Extract Instance Captions")):
             # if i > 0 and i % self.restart_interval == 0:
             #     self.restart_ollama()
-            print(inst_id)
+            print(inst_id, "inst_id")
             captions = []
             inst_info = {}
             class_name = inst_val["category"] #! 이거 top n categories로 수정해야되려나
@@ -78,18 +104,21 @@ class caption_extractor():
                 frame_name = frame_keys[i] 
                 image_file = os.path.join(self.image_root_path, f"{int(frame_name):06d}.png")
 
-                qs = f"There is one {class_name} in the scene.\
-                    Describe and identify the instance including the color and quality of the material."
+                qs = f"There is one {class_name} in the scene. Describe its color, material, and one special feature. Don’t repeat any word or phrase. Limit your response to 2 sentences maximum. Finish as soon as main traits are mentioned. Avoid repeating words, phrases, or patterns."
+                # qs = f"There is one {class_name} in the scene.\
+                #     Describe and identify the instance including the color and quality of the material."
                 try: 
                     print("captioning")
-                    response: ChatResponse = chat(model='llama3.2-vision', messages=[
+                    response: ChatResponse = chat(model='llama3.2-vision:latest', messages=[
                         {
                             'role': 'user',
                             'content': qs,
                             'images': [image_file]
                         }],
                             keep_alive="10m")
-                    captions.append(response['message']['content'])
+                    caption = self.clean_caption(response['message']['content'], max_sentences=2, max_chars=200)
+                    captions.append(caption)
+                    print("captioned:", caption)
                 except Exception as e:
                     print(f"Error processing {image_file}: {e}")
                     captions.append(f"[error] caption generation failed: {e}")  # >>> CHANGED
