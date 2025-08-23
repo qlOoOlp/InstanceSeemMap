@@ -237,7 +237,13 @@ def parse_args_roomcls():
                         help="Version name to append to the output map name (e.g., grid_lseg_v1.npy)")
     
     parser.add_argument("--clip-version", type=str, default="ViT-B/32")
-    parser.add_argument("--lang-labels", default=["void", "living room", "kitchen", "bathroom", "bedroom", "hallway"], help="Language labels for CLIP classification")
+
+    '''
+    # hallway 
+    lang = ["void", "office", "rec room", "living room", "kitchen", "bathroom", "bedroom", "dining room",  "garage", "hallway"]
+    '''
+    parser.add_argument("--lang-labels", default=["void", "office", "rec room", "living room", "kitchen", "bathroom", "bedroom", "dining room",  "garage"], help="Language labels for CLIP classification")
+    # parser.add_argument("--lang-labels", default=["void", "living room", "kitchen", "bathroom", "bedroom", "hallway"], help="Language labels for CLIP classification")
     parser.add_argument("--thres-area", type=int, default=300, help="Minimum pixel count to consider a region")
     parser.add_argument("--kernel-size", type=int, default=11, help="Kernel size for morphological dilation")
 
