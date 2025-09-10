@@ -44,6 +44,13 @@ class SeemMap_bbox4hm3d22(SeemMap):
         
         self.max_height = self.config["max_height"]
 
+    # --- 추가: packed RGB 유틸 ---
+    def _pack_rgb(self, rgb3: np.ndarray) -> int:
+        return (int(rgb3[0]) << 16) | (int(rgb3[1]) << 8) | int(rgb3[2])
+
+    def _unpack_rgb(self, packed: int) -> np.ndarray:
+        return np.array([(packed >> 16) & 255, (packed >> 8) & 255, packed & 255], dtype=np.uint8)
+
     def processing(self):
         print("start")
 
@@ -195,40 +202,54 @@ class SeemMap_bbox4hm3d22(SeemMap):
             # print(3-1)
             # print(2)
             feat_dict = {}
+
+            # ★★★ 프레임 단위: (seem_id → {(y,x):(top_h, rgb)}) 임시 저장소
+            per_seem_cell_top = {}
+
             for seem_id in np.unique(map_idx):
                 if seem_id == 0 :  continue
                 feat_map_inst_mask = (map_idx == seem_id).astype(np.uint8)
                 feat_map = np.zeros_like(self.grid, dtype=np.float32)
                 feat_map_bool = np.zeros_like(self.grid, dtype=np.bool)
+                # 이 seem_id의 셀별 top 후보 dict
+                top_dict = per_seem_cell_top.setdefault(seem_id, {})
+
                 for i,j in np.argwhere(feat_map_inst_mask ==1):
                     new_i = int(i * h_ratio)
                     new_j = int(j * w_ratio)
-                    # print(np.sum(pc_mask))
                     if not pc_mask[new_i*depth_shape[1]+new_j]:
                         continue
-                        # raise Exception("Depth filtering is failed")
-                    # if depth[new_i,new_j] < self.min_depth or depth[new_i,new_j] > self.max_depth:
-                    #     raise ValueError("Depth filtering is failed")
-                    # if depth[new_i, new_j] < self.min_depth or depth[new_i,new_j]> self.max_depth:
-                    #     raise Exception("Depth filtering is failed")
                     pp = pc_global[:,new_i*depth_shape[1]+new_j]
-                    # print(pp)
                     if self.pose_type == "mat":
-                        # print(pp[2])
                         pp[1] += self.camera_height #!#!#!#!#!#!#!#!#!#!#!#!#!#!#!#!#
-                        # if pp[2] > 3 or pp[2] < 0.5: continue #1e-4:continue #!#!#!#!#!#!#!##!#!#!#!#!
                         x,y = pos2grid_id(self.gs,self.cs,pp[0],pp[2])
-                        feat_map[y,x] = pp[1]
+                        h_val = pp[1]
+                        if h_val <= 0: 
+                            continue
+                        feat_map[y,x] = h_val
                         feat_map_bool[y,x]=True
                     else:
                         if pp[1] >1e-4 and pp[2] < self.max_height:
-                        # if pp[2] >1e-4 and pp[2] < 2:
                             x,y = pos2grid_id(self.gs,self.cs,pp[0],pp[2])
-                            feat_map[y,x] = pp[2]
+                            h_val = pp[2]
+                            feat_map[y,x] = h_val
                             feat_map_bool[y,x]=True
-                # print(np.sum(feat_map_bool))
+
+                    # (y,x)별 top(높이 최대) RGB 갱신
+                    if feat_map_bool[y,x]:
+                        prev = top_dict.get((y,x))
+                        if (prev is None) or (h_val > prev[0]):
+                            top_dict[(y,x)] = (h_val, rgb[new_i, new_j, :].copy())
+
+                # denoising 후 살아남은 셀만 기록 유지
                 feat_map_bool = self.denoising(feat_map_bool, self.min_size_denoising_after_projection)
-                # print("d")
+                if top_dict:
+                    top_dict_filtered = {}
+                    for (yy, xx), (hh, c) in top_dict.items():
+                        if feat_map_bool[yy, xx]:
+                            top_dict_filtered[(yy, xx)] = (hh, c)
+                    per_seem_cell_top[seem_id] = top_dict_filtered
+
                 if np.sum(feat_map_bool) < self.threshold_pixelSize: 
                     map_idx[map_idx == seem_id] = 0
                     continue
@@ -318,9 +339,19 @@ class SeemMap_bbox4hm3d22(SeemMap):
                         new_instance_id += 1
                         # self.visualization(feat_map_mask_int)
                 # print("grid saving")
-                for coord in np.argwhere(feat_map_mask_int != 0):
-                    i,j = coord
-                    self.grid[i,j].setdefault(max_id, [0, feat_map_mask[i,j],1])[2] +=1
+                # ★★★ per_seem_cell_top 기반: 셀-객체별 top-height & RGB 기록을 grid에 반영
+                top_dict_use = per_seem_cell_top.get(seem_id, {})
+                for (y, x), (h_val, rgb_val) in top_dict_use.items():
+                    cell = self.grid[y, x]
+                    if max_id not in cell:
+                        # 구조: [0, top_height, count, packed_rgb]
+                        cell[max_id] = [0, float(h_val), 1, self._pack_rgb(rgb_val)]
+                    else:
+                        if float(h_val) > float(cell[max_id][1]):
+                            cell[max_id][1] = float(h_val)
+                            cell[max_id][3] = self._pack_rgb(rgb_val)
+                        cell[max_id][2] += 1
+
             self.frame_mask_dict[self.datamanager.count] = frame_mask
             # print(3)
             pbar.update(1)
@@ -418,7 +449,7 @@ class SeemMap_bbox4hm3d22(SeemMap):
         inter_x_max = min(bbox1[3], bbox2[3])
         # print(inter_y_min, inter_x_min, inter_y_max, inter_x_max)
         inter_height = max(0,inter_y_max - inter_y_min)
-        inter_width = max(0,inter_x_max - inter_x_min)
+        inter_width = max(0, inter_x_max - inter_x_min)
         inter_area = inter_height * inter_width
         area1 = (bbox1[2] - bbox1[0]) * (bbox1[3] - bbox1[1])
         area2 = (bbox2[2] - bbox2[0]) * (bbox2[3] - bbox2[1])
@@ -548,16 +579,37 @@ class SeemMap_bbox4hm3d22(SeemMap):
                 new_instance_dict[instance_id]["frames"] = dict(sorted(frames.items(), key=lambda x: x[1], reverse=True))
             print(new_instance_dict.keys())
 
+            # ★★★ 충돌 처리 포함: 같은 셀에서 동일 new_id가 중복될 경우 top-height 큰 쪽의 RGB 유지, count 합산
             for y in range(self.gs):
                 for x in range(self.gs):
                     for key, val in self.grid[y, x].items():
                         if key in [1, 2]:
                             new_grid[y, x][key] = val
                             continue
-                        if key not in matching_dict.keys(): continue
+                        if key not in matching_dict.keys(): 
+                            continue
                         new_id = matching_dict[key]
                         if new_id not in new_grid[y, x].keys():
                             new_grid[y, x][new_id] = val
+                        else:
+                            prev = new_grid[y, x][new_id]
+                            # prev/val: [0, top_h, count, packed_rgb] (rgb 없을 수도 있음)
+                            prev_h = prev[1] if len(prev) >= 2 else 0.0
+                            val_h  = val[1]  if len(val)  >= 2 else 0.0
+                            prev_c = prev[2] if len(prev) >= 3 else 0
+                            val_c  = val[2]  if len(val)  >= 3 else 0
+                            # 높이가 큰 쪽의 RGB/height 채택
+                            if val_h > prev_h:
+                                prev[1] = val_h
+                                if len(val) >= 4:
+                                    if len(prev) >= 4:
+                                        prev[3] = val[3]
+                                    else:
+                                        # prev에 rgb 슬롯이 없다면 확장
+                                        prev.append(val[3])
+                            # count 합산
+                            prev[2] = prev_c + val_c
+
             self.grid = new_grid.copy()
             self.instance_dict = new_instance_dict.copy()
             init = False
@@ -567,97 +619,62 @@ class SeemMap_bbox4hm3d22(SeemMap):
             for id, val in self.instance_dict.items():
                 self.instance_dict[id]['mask'] = np.rot90(val['mask'], k=1)#! 3
 
+    # --- 추가: 인스턴스별 RGB 마스크(bbox 크롭) 생성 ---
+    def _build_instance_rgb_masks_cropped(self, will_rotate: bool = False) -> None:
+        """
+        인스턴스별 RGB 마스크를 bbox 크롭으로 생성.
+        rot_map=True인 경우, postprocessing2에서 mask가 이미 회전되어 있으므로
+        grid도 회전본을 사용해 정합을 맞춘다. 최종 rgb_mask는 추가 회전하지 않는다.
+        """
+        # 채우기에 사용할 grid 선택 (정합 보장)
+        grid_for_fill = np.rot90(self.grid, k=1) if self.rot_map else self.grid
+
+        # 1) bbox 계산 및 rgb_mask 초기화 (mask 기준)
+        for inst_id, inst in self.instance_dict.items():
+            m = inst.get("mask")
+            if m is None or np.sum(m) == 0:
+                inst.pop("rgb_mask", None)
+                inst.pop("rgb_bbox", None)
+                continue
+            ys, xs = np.where(m > 0)
+            y0, x0, y1, x1 = ys.min(), xs.min(), ys.max() + 1, xs.max() + 1
+            inst["rgb_bbox"] = (y0, x0, y1, x1)
+            inst["rgb_mask"] = np.zeros((y1 - y0, x1 - x0, 3), dtype=np.uint8)
+
+        # 2) grid_for_fill를 훑으며 bbox 내부만 RGB 채우기
+        for y in range(self.gs):
+            for x in range(self.gs):
+                cell = grid_for_fill[y, x]
+                if not cell:
+                    continue
+                for inst_id, val in cell.items():
+                    if inst_id in [1, 2]:
+                        continue
+                    if not (isinstance(val, (list, tuple)) and len(val) >= 4):
+                        continue
+                    packed = val[3]
+                    if not packed:
+                        continue
+                    inst = self.instance_dict.get(inst_id)
+                    if not inst or "rgb_mask" not in inst:
+                        continue
+                    y0, x0, y1, x1 = inst["rgb_bbox"]
+                    if y < y0 or y >= y1 or x < x0 or x >= x1:
+                        continue
+                    r = (packed >> 16) & 255
+                    g = (packed >> 8) & 255
+                    b = packed & 255
+                    inst["rgb_mask"][y - y0, x - x0, 0] = r
+                    inst["rgb_mask"][y - y0, x - x0, 1] = g
+                    inst["rgb_mask"][y - y0, x - x0, 2] = b
+
+        # 3) 추가 회전 없음
+        # (postprocessing2에서 mask를 회전했고, 여기서도 grid를 동일하게 회전본으로 사용했기 때문에
+        #  rgb_mask를 또 회전시키면 이중 회전이 됨. will_rotate는 무시.)
 
 
     # def postprocessing(self):
-    #     while True:
-    #         grid_map = {}
-    #         for y in range(self.gs):
-    #             for x in range(self.gs):
-    #                 for key in self.grid[y,x].keys():
-    #                     if key not in grid_map:
-    #                         grid_map[key] = set()
-    #                     grid_map[key].add((y,x))
-
-    #         new_instance_dict = {}
-    #         matching_dict = {}
-    #         new_grid = np.empty((self.gs, self.gs), dtype=object)
-    #         count0 = 0
-    #         count1 = 0
-    #         for i in range(self.gs):
-    #             for j in range(self.gs):
-    #                 new_grid[i, j] = {}
-    #                 if 1 in self.grid[i, j].keys(): count0 += 1
-    #                 if 2 in self.grid[i, j].keys(): count1 += 1
-    #         print(f"Size of wall and floor: {count0}, {count1}")
-
-    #         pbar2 = tqdm(total=len(self.instance_dict.items()), leave=True)
-    #         updated = False  # 변경 여부를 추적하기 위한 플래그
-    #         for instance_id, instance_val in self.instance_dict.items():
-    #             tf = True
-    #             try:
-    #                 instance_y, instance_x = zip(*grid_map[instance_id])
-    #             except:
-    #                 pbar2.update(1)
-    #                 continue
-    #             instance_y = np.array(instance_y)
-    #             instance_x = np.array(instance_x)
-    #             instance_mask = np.zeros((self.gs, self.gs), dtype=np.uint8)
-    #             instance_mask[instance_y, instance_x] = 1
-    #             if np.sum(instance_mask) < 10:
-    #                 pbar2.update(1)
-    #                 continue
-    #             instance_emb = instance_val["embedding"]
-    #             for new_id, new_val in new_instance_dict.items():
-    #                 # if new_id in [1,2]: continue
-    #                 new_mask = new_val["mask"]
-    #                 new_emb = new_val["embedding"]
-    #                 new_count = new_val["count"]
-    #                 new_avg_height = new_val["avg_height"]
-    #                 intersection = np.logical_and(instance_mask, new_mask).astype(int)
-    #                 iou1 = np.sum(intersection) / np.sum(instance_mask)
-    #                 iou2 = np.sum(intersection) / np.sum(new_mask)
-    #                 instance_emb_normalized = instance_emb / np.linalg.norm(instance_emb)
-    #                 new_emb_normalized = new_emb / np.linalg.norm(new_emb)
-    #                 semSim = instance_emb_normalized @ new_emb_normalized.T
-    #                 if max(iou1,iou2) > self.threshold_geoSim_post and semSim > self.threshold_semSim_post:
-    #                     new_instance_dict[new_id]["embedding"] = (new_emb * new_count + instance_emb) / (new_count + 1)
-    #                     new_instance_dict[new_id]["avg_height"] = (new_avg_height * new_count + instance_val["avg_height"]) / (new_count + 1)
-    #                     new_instance_dict[new_id]["count"] = new_count + 1
-    #                     new_instance_dict[new_id]["mask"] = np.logical_or(new_mask, instance_mask).astype(np.uint8)
-    #                     new_instance_dict[new_id]["frames"] = dict(Counter(new_instance_dict[new_id]["frames"]) + Counter(instance_val["frames"]))
-    #                     tf = False
-    #                     matching_dict[instance_id] = new_id
-    #                     for frame_key in instance_val["frames"].keys():
-    #                         frame_mask = self.frame_mask_dict[frame_key]
-    #                         self.frame_mask_dict[frame_key][frame_mask == instance_id] = new_id
-    #                     updated = True  # 변경이 발생했음을 표시
-    #                     break
-    #             if tf:
-    #                 new_instance_dict[instance_id] = {"mask": instance_mask, "embedding": instance_emb, "count": 1, "frames": instance_val["frames"], "avg_height": instance_val["avg_height"]}
-    #                 matching_dict[instance_id] = instance_id
-    #             pbar2.update(1)
-
-    #         for instance_id in new_instance_dict.keys():
-    #             frames = new_instance_dict[instance_id]["frames"]
-    #             new_instance_dict[instance_id]["frames"] = dict(sorted(frames.items(), key=lambda x: x[1], reverse=True))
-    #         print(new_instance_dict.keys())
-
-    #         for y in range(self.gs):
-    #             for x in range(self.gs):
-    #                 for key, val in self.grid[y, x].items():
-    #                     if key in [1, 2]:
-    #                         new_grid[y, x][key] = val
-    #                         continue
-    #                     if key not in matching_dict.keys(): continue
-    #                     new_id = matching_dict[key]
-    #                     if new_id not in new_grid[y, x].keys():
-    #                         new_grid[y, x][new_id] = val
-    #         self.grid = new_grid.copy()
-    #         self.instance_dict = new_instance_dict.copy()
-
-    #         if not updated:
-    #             break
+    #     ... (원본 그대로, 변경 없음)
     
     def preprocessing(self):
         raise NotImplementedError
@@ -681,8 +698,10 @@ class SeemMap_bbox4hm3d22(SeemMap):
         self.frame_mask_dict = {}
     
     def save_map(self):
+        # 저장 직전: grid/instance_dict를 기반으로 인스턴스별 RGB 마스크 구성
         if self.bool_submap:
             if self.rot_map:
+                self._build_instance_rgb_masks_cropped(will_rotate=True)
                 self.datamanager.save_map(color_top_down=np.rot90(self.color_top_down, k=1),#! 3
                                     grid=np.rot90(self.grid, k=1),#! 3
                                     obstacles=np.rot90(self.obstacles, k=1),#! 3
@@ -691,6 +710,7 @@ class SeemMap_bbox4hm3d22(SeemMap):
                                     frame_mask_dict=self.frame_mask_dict,
                                     clip_grid=np.rot90(self.clip_grid, k=1))#! 3
             else:
+                self._build_instance_rgb_masks_cropped(will_rotate=False)
                 self.datamanager.save_map(color_top_down=self.color_top_down,
                                         grid=self.grid,
                                         obstacles=self.obstacles,
@@ -700,11 +720,13 @@ class SeemMap_bbox4hm3d22(SeemMap):
                                         clip_grid=self.clip_grid)
         else:
             if self.rot_map:
+                self._build_instance_rgb_masks_cropped(will_rotate=True)
                 self.datamanager.save_map(grid=np.rot90(self.grid, k=1),#! 3
                                     instance_dict=self.instance_dict,
                                     frame_mask_dict=self.frame_mask_dict,
                                     clip_grid=np.rot90(self.clip_grid, k=1))#! 3
             else:
+                self._build_instance_rgb_masks_cropped(will_rotate=False)
                 self.datamanager.save_map(grid=self.grid,
                                         instance_dict=self.instance_dict,
                                         frame_mask_dict=self.frame_mask_dict,

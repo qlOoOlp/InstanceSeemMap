@@ -71,12 +71,12 @@ class DataManager():
             try:
                 with open(path, 'rb') as f:
                     temp = np.load(f, allow_pickle=True)
-                result.append[temp]
+                result.append(temp)
             except:
                 try:
                     with open(path, 'rb') as f:
                         temp = pickle.load(f)
-                    result.append[temp]
+                    result.append(temp)
                 except: raise ValueError("Invalid map path")
         return result
     
@@ -191,9 +191,10 @@ class DataManager4Real(DataManager):
 
 
 class DataManager4gt(DataManager):
-    def __init__(self, version:str, data_path:str, map_path:str, start_frame:int=0, end_frame:int=-1):
+    def __init__(self, version:str, data_path:str, map_path:str, start_frame:int=0, end_frame:int=-1, skip_frames:int=1):
         super().__init__(version, data_path, map_path, start_frame, end_frame)
         self._semantic_path = self._data_path + '/semantic'
+        self._skip_frames = skip_frames
         self._load_data()
     def _load_data(self)->None:
         self.check_path(self._data_path, self._rgb_path, self._depth_path, self._pose_path, self._semantic_path)
@@ -214,15 +215,15 @@ class DataManager4gt(DataManager):
         self._semanticlist = [os.path.join(self._semantic_path, x) for x in self._semanticlist]
     
         if self._end_frame == -1:
-            self._rgblist = [os.path.join(self._rgb_path, x) for x in self._rgblist][self._start_frame:]
-            self._depthlist = [os.path.join(self._depth_path, x) for x in self._depthlist][self._start_frame:]
-            self._poselist = [os.path.join(self._pose_path, x) for x in self._poselist][self._start_frame:]
-            self._semanticlist = [os.path.join(self._semantic_path, x) for x in self._semanticlist][self._start_frame:]
+            self._rgblist = [os.path.join(self._rgb_path, x) for x in self._rgblist[self._start_frame::self._skip_frames]]
+            self._depthlist = [os.path.join(self._depth_path, x) for x in self._depthlist[self._start_frame::self._skip_frames]]
+            self._poselist = [os.path.join(self._pose_path, x) for x in self._poselist[self._start_frame::self._skip_frames]]
+            self._semanticlist = [os.path.join(self._semantic_path, x) for x in self._semanticlist[self._start_frame::self._skip_frames]]
         else:
-            self._rgblist = [os.path.join(self._rgb_path, x) for x in self._rgblist][self._start_frame:self._end_frame+1]
-            self._depthlist = [os.path.join(self._depth_path, x) for x in self._depthlist][self._start_frame:self._end_frame+1]
-            self._poselist = [os.path.join(self._pose_path, x) for x in self._poselist][self._start_frame:self._end_frame+1]
-            self._semanticlist = [os.path.join(self._semantic_path, x) for x in self._semanticlist][self._start_frame:self._end_frame+1]
+            self._rgblist = [os.path.join(self._rgb_path, x) for x in self._rgblist[self._start_frame:self._end_frame+1:self._skip_frames]]
+            self._depthlist = [os.path.join(self._depth_path, x) for x in self._depthlist[self._start_frame:self._end_frame+1:self._skip_frames]]
+            self._poselist = [os.path.join(self._pose_path, x) for x in self._poselist[self._start_frame:self._end_frame+1:self._skip_frames]]
+            self._semanticlist = [os.path.join(self._semantic_path, x) for x in self._semanticlist[self._start_frame:self._end_frame+1:self._skip_frames]]
         if not len(self._rgblist) == len(self._depthlist) == len(self._poselist) == len(self._semanticlist):
             raise ValueError("Data length mismatch")
 
@@ -272,7 +273,7 @@ class DataManagerRoom(DataManager):
         self.depthlist = sorted(os.listdir(self._depth_path))
         self.depthlist = [os.path.join(self._depth_path, x) for x in self.depthlist]
  
-        print(self.pose_path)
+        print(self._pose_path)
         self.poselist = sorted(os.listdir(self._pose_path))
         self.poselist = [os.path.join(self._pose_path, x) for x in self.poselist]
  

@@ -111,9 +111,9 @@ class RoomClsProcessor:
     def load_data(self):
         self.obs = load_map(os.path.join(self.data_dir, "01buildFeatMap",f"obstacles_{self.version}.npy"))
         self.check_boundary()
-        self.seg_result = cv2.imread(os.path.join(self.room_seg_dir, '7-restore_output.png'),0) #!#!#!#!#!#!#!#!어떤 것을 불러와야되지
+        self.seg_result = cv2.imread(os.path.join(self.room_seg_dir, '7-restore_output.png'),0) 
         self.clip_grid = load_map(os.path.join(self.data_dir, "01buildFeatMap", f"clip_grid_{self.version}.npy"))
-        self.clip_grid = np.rot90(self.clip_grid) #!#!#!#!#mp3d
+        # self.clip_grid = np.rot90(self.clip_grid) #!#!#!#!#mp3d
         self.clip_grid = self.clip_grid[self.xmin:self.xmax+1, self.ymin:self.ymax+1]
         self.obs = self.obs[self.xmin:self.xmax+1, self.ymin:self.ymax+1]
 

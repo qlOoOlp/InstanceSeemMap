@@ -225,7 +225,7 @@ def build_point_cloud_from_instance_masks(
     all_cols = []
 
     for inst_id, inst in instance_dict.items():
-        if inst["category"] in ["rug", "mat"]:
+        if inst["category"] in ["rug", "mat", "floor","ceiling","lamp"]:
             continue
         if not include_bg and inst_id in (1, 2):
             continue
@@ -305,7 +305,7 @@ if __name__ == "__main__":
     # 1) 저장된 instance_dict(.pkl/.npz) 경로
     # 예) instance_dict_path = "/path/to/instance_dict_rgbmask.pkl"  # mask/avg_height 포함 파일
     # instance_dict_path = "/path/to/your/instance_dict.pkl"
-    instance_dict_path = "/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00829-QaLdnwvtxbs/map/00829-QaLdnwvtxbs_test0811mh3/02buildCatMap/categorized_instance_dict_test0811mh3.pkl"#"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00829-QaLdnwvtxbs/map/00829-QaLdnwvtxbs_test0811mh3/01buildFeatMap/instance_dict_test0811mh3.pkl"#"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00862-LT9Jq6dN3Ea/map/00862-LT9Jq6dN3Ea_test0811mh6/02buildCatMap/categorized_instance_dict_test0811mh6.pkl" #"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00829-QaLdnwvtxbs/map/00829-QaLdnwvtxbs_test0811mh3/02buildCatMap/categorized_instance_dict_test0811mh3.pkl"#"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00829-QaLdnwvtxbs/map/00829-QaLdnwvtxbs_test0811mh3/01buildFeatMap/instance_dict_test0811mh3.pkl" #"/home/vlmap_RCI/Data/habitat_sim/mp3d/2t7WUuJeko7_2/map/2t7WUuJeko7_2_rgbmask/01buildFeatMap/instance_dict_rgbmask.pkl"
+    instance_dict_path = "/home/vlmap_RCI/Data/habitat_sim/Replica/office3/map/office3_final_test/02buildCatMap/categorized_instance_dict_final_test.pkl"#"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00829-QaLdnwvtxbs/map/00829-QaLdnwvtxbs_test0811mh3/02buildCatMap/categorized_instance_dict_test0811mh3.pkl"#"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00829-QaLdnwvtxbs/map/00829-QaLdnwvtxbs_test0811mh3/01buildFeatMap/instance_dict_test0811mh3.pkl"#"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00862-LT9Jq6dN3Ea/map/00862-LT9Jq6dN3Ea_test0811mh6/02buildCatMap/categorized_instance_dict_test0811mh6.pkl" #"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00829-QaLdnwvtxbs/map/00829-QaLdnwvtxbs_test0811mh3/02buildCatMap/categorized_instance_dict_test0811mh3.pkl"#"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00829-QaLdnwvtxbs/map/00829-QaLdnwvtxbs_test0811mh3/01buildFeatMap/instance_dict_test0811mh3.pkl" #"/home/vlmap_RCI/Data/habitat_sim/mp3d/2t7WUuJeko7_2/map/2t7WUuJeko7_2_rgbmask/01buildFeatMap/instance_dict_rgbmask.pkl"
 
 
     # 2) 로드

@@ -11,6 +11,7 @@ from map.utils.mapping_utils import load_map
 from map.seem.base_model import build_vl_model
 from map.utils.matterport3d_categories import mp3dcat
 from map.utils.replica_categories import replica_cat
+from map.utils.hm3dsem_categories import hm3dsem_cat
 
 CLIP_FEAT_DIM_DICT = {'RN50': 1024, 'RN101': 512, 'RN50x4': 640, 'RN50x16': 768,
                     'RN50x64': 1024, 'ViT-B/32': 512, 'ViT-B/16': 512, 'ViT-L/14': 768}
@@ -41,6 +42,8 @@ class visualizer():
             self.categories = mp3dcat
         elif self.dataset_type in ["Replica","replica", "hm3dsem"]:
             self.categories = replica_cat
+        elif self.dataset_type == "hm3dsem":
+            self.categories = hm3dsem_cat
         self.floor_mask = config["filtering_floor"]
 
     def visualize(self):
@@ -184,13 +187,14 @@ class visualizer():
         if not self.grid_flag:
             grid_path = os.path.join(self.target_dir,"01buildFeatMap", f"grid_{self.version}.npy")
             self.grid = load_map(grid_path)
-            if self.using_categorized_map:
-                instance_dict_path = os.path.join(self.target_dir,"02buildCatMap", f"categorized_instance_dict_{self.version}.pkl")
-                with open(instance_dict_path, 'rb') as f:
-                    self.instance_dict = pkl.load(f)
-            else:
-                instance_dict_path = os.path.join(self.target_dir,"01buildFeatMap", f"instance_dict_{self.version}.pkl")
-                with open(instance_dict_path, 'rb') as f:
-                    self.instance_dict = pkl.load(f)
+            if self.vlm == "ours":
+                if self.using_categorized_map:
+                    instance_dict_path = os.path.join(self.target_dir,"02buildCatMap", f"categorized_instance_dict_{self.version}.pkl")
+                    with open(instance_dict_path, 'rb') as f:
+                        self.instance_dict = pkl.load(f)
+                else:
+                    instance_dict_path = os.path.join(self.target_dir,"01buildFeatMap", f"instance_dict_{self.version}.pkl")
+                    with open(instance_dict_path, 'rb') as f:
+                        self.instance_dict = pkl.load(f)
             self.grid_flag = True
         return

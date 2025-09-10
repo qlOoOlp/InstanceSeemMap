@@ -34,8 +34,6 @@ class LsegMap(Map):
         self.depth_sample_rate = self.config["depth_sample_rate"]
         self.min_depth = self.config["min_depth"]
         self.max_depth = self.config["max_depth"]
-        self.pose_type = self.config["pose_type"]
-        self.rot_map = self.config["no_rot_map"]
 
 
         self._setup_CLIP()
@@ -70,51 +68,32 @@ class LsegMap(Map):
 
         # print(self.datamanager.get_init_pose())
         if self.pose_type == "mat":
-            self.base2cam_tf = self.datamanager.get_init_pose()
-            self.datamanager.rectification_matrix = self.base2cam_tf[:3,:3] #!#!#!#!#!#!#!#!# 0909
-            self.datamanager.rectification_matrix = np.linalg.inv(self.datamanager.rectification_matrix) #!#!#!#!#!#!#!#!#!#!#!# 0909
+            base_pose = self.datamanager.get_init_pose()
         else:
             b_pos, b_rot = self.datamanager.get_init_pose()
             base_pose = np.eye(4)
             base_pose[:3, :3] = b_rot
             base_pose[:3, 3] = b_pos.reshape(-1)
-            # base_pose = np.eye(4)
-            # base_pose[:3, :3] = b_rot
-            # base_pose[:3, 3] = b_pos.reshape(-1)
-            # print(base_pose)
-            self.init_base_tf = base_pose
-            self.base_transform = np.array([[1,0,0,0],[0,0,1,0],[0,1,0,0],[0,0,0,1]])#!([[0,0,-1,0],[-1,0,0,0],[0,1,0,0],[0,0,0,1]])#([[1,0,0,0],[0,0,1,0],[0,1,0,0],[0,0,0,1]])#([[0,0,-1,0],[-1,0,0,0],[0,1,0,0],[0,0,0,1]])
-            # print(self.init_base_tf)
-            self.init_base_tf = self.base_transform @ self.init_base_tf @ np.linalg.inv(self.base_transform)
-            # print(self.init_base_tf)
-            self.inv_init_base_tf = np.linalg.inv(self.init_base_tf)
-            self.base2cam_tf = np.eye(4)
-            self.base2cam_tf[:3,:3] = self.datamanager.rectification_matrix
-            self.base2cam_tf[1,3] = self.camera_height
-            # self.base2cam_tf = np.array([[1,0,0,0],[0,-1,0,1.5],[0,0,-1,0],[0,0,0,1]])
-            # print(self.base2cam_tf)
-            # raise Exception("sdfdsfsdf")
-            self.init_cam_tf = self.init_base_tf @ self.base2cam_tf
-            self.inv_init_cam_tf = np.linalg.inv(self.init_cam_tf)
-        tf_list = []
+        # print(base_pose)
+        self.init_base_tf = base_pose
+        self.base_transform = np.array([[0,0,-1,0],[-1,0,0,0],[0,1,0,0],[0,0,0,1]])
+        # print(self.init_base_tf)
+        self.init_base_tf = self.base_transform @ self.init_base_tf @ np.linalg.inv(self.base_transform)
+        # print(self.init_base_tf)
+        self.inv_init_base_tf = np.linalg.inv(self.init_base_tf)
+        self.base2cam_tf = np.array([[1,0,0,0],[0,-1,0,1.5],[0,0,-1,0],[0,0,0,1]])
+        self.init_cam_tf = self.init_base_tf @ self.base2cam_tf
+        self.inv_init_cam_tf = np.linalg.inv(self.init_cam_tf)
         pbar = tqdm(range(self.datamanager.numData))
         while self.datamanager.count < self.datamanager.numData -1:
-            rgb, depth, pose = self.datamanager.data_getter()
-            if self.pose_type == "mat":
-                # pose[:3,:3] = pose[:3,:3]#@ self.datamanager.rectification_matrix #!#!#!#!#!
-                tf_list.append(pose)
-                if len(tf_list) == 1:
-                    init_tf_inv = np.linalg.inv(tf_list[0])
-                # tf = init_tf_inv @ pose
-                # pose[:3,:3] = pose[:3,:3] @ self.datamanager.rectification_matrix #!#!#!#!#!#!
-                tf = pose
-            else:
-                pose2 = np.eye(4)
-                pose2[:3, :3] = pose[1].copy()# @ self.datamanager.rectification_matrix#!#!#!#!#!#!
-                pose2[:3, 3] = pose[0].copy().reshape(-1)
+            # print("step1. load data")
+            rgb, depth, (pos,rot) = self.datamanager.data_getter()
+            pose = np.eye(4)
+            pose[:3, :3] = rot
+            pose[:3, 3] = pos.reshape(-1)
 
-                base_pose = self.base_transform @ pose @ np.linalg.inv(self.base_transform)
-                tf = self.inv_init_base_tf @ base_pose
+            base_pose = self.base_transform @ pose @ np.linalg.inv(self.base_transform)
+            tf = self.inv_init_base_tf @ base_pose
 
             # print("step2. get lseg features")
             _, features, _ = get_lseg_feats(self.model, rgb, self.labels, self.crop_size, self.base_size, self.transform, self._MEAN, self._STD)
@@ -131,12 +110,7 @@ class LsegMap(Map):
                 rgb_cam_mat = get_sim_cam_mat4Real(self.datamanager.projection_matrix, rgb.shape[:2],rgb.shape[:2])
                 feat_cam_mat = get_sim_cam_mat4Real(self.datamanager.projection_matrix, rgb.shape[:2], features.shape[2:])
             else:
-                if self.pose_type == "mat":
-                    # pc, mask = depth2pc(depth, depth_scale=1000) #!#!#!#!#!#!#!#!#!#!
-                    pc, mask = depth2pc(depth,intr_mat = np.array([[600, 0, 599.5],[0, 600, 339.5],[0,0,1]]), max_depth=self.max_depth, min_depth=self.min_depth, depth_scale=6553.5)  #!##!#!#!## 0809
-
-                else:
-                    pc, mask = depth2pc(depth, max_depth=self.max_depth, min_depth=self.min_depth)
+                pc, mask = depth2pc(depth, min_depth=self.min_depth, max_depth=self.max_depth)
                 # print(pc.shape)
                 shuffle_mask = np.arange(pc.shape[1])
                 np.random.shuffle(shuffle_mask)
@@ -145,21 +119,20 @@ class LsegMap(Map):
                 pc = pc[:, shuffle_mask]
                 # print(pc.shape)
                 pc =pc[:, mask]
-                if self.pose_type == "mat":
-                    pc_global = transform_pc(pc, tf)
-                else:
-                    pc_transform = tf @ self.base_transform @ self.base2cam_tf
-                    pc_global = transform_pc(pc, pc_transform)
+                pc_transform = tf @ self.base_transform @ self.base2cam_tf
+                pc_global = transform_pc(pc, pc_transform)
                 rgb_cam_mat = get_sim_cam_mat(rgb.shape[0],rgb.shape[1])
                 feat_cam_mat = get_sim_cam_mat(features.shape[2], features.shape[3])
             # print("step4. projection")
             # print(pc.shape, pc_global.shape)
             for i, (p, p_local) in enumerate(zip(pc_global.T, pc.T)):
-                p[2] += self.camera_height #!#!#!#!#!#!#!#!#!#!#!#!#!#!#!#!#
-                x,y = pos2grid_id(self.gs,self.cs,p[0],p[1])
+                if p[2] < 1e-4: continue
+                x, y = pos2grid_id(self.gs, self.cs, p[0], p[1])
 
                 # ignore points projected to outside of the map and points that are 0.5 higher than the camera (could be from the ceiling)
-                if x>= self.obstacles.shape[0] or y>= self.obstacles.shape[1] or x<0 or y<0 : continue
+                if x >= self.obstacles.shape[0] or y >= self.obstacles.shape[1] or \
+                    x < 0 or y < 0 or p[2] > 2:
+                    continue
 
                 # Step4. rgb embedding vector
                 rgb_px, rgb_py, rgb_pz = project_point(rgb_cam_mat, p_local)
@@ -182,7 +155,7 @@ class LsegMap(Map):
                 # build an obstacle map ignoring points on the floor (0 means occupied, 1 means free)
                 if p[2] < 1e-4: #self.camera_height:
                     continue
-                self.obstacles[y,x]=0
+                self.obstacles[y,x]=1
             pbar.update(1)
         # self.save_map()
     
@@ -196,10 +169,10 @@ class LsegMap(Map):
         raise NotImplementedError
     
     def _init_map(self):
-        self.color_top_down_height = -10 * np.ones((self.gs, self.gs), dtype=np.float32)#(self.camera_height + 1) * np.ones((self.gs, self.gs), dtype=np.float32)
+        self.color_top_down_height = np.zeros((self.gs, self.gs), dtype=np.float32)#(self.camera_height + 1) * np.ones((self.gs, self.gs), dtype=np.float32)
         self.color_top_down = np.zeros((self.gs, self.gs, 3), dtype=np.uint8)
         self.grid = np.zeros((self.gs, self.gs, self.feat_dim), dtype=np.float32)
-        self.obstacles = np.ones((self.gs, self.gs), dtype=np.uint8)
+        self.obstacles = np.zeros((self.gs, self.gs), dtype=np.uint8)
         self.weight = np.zeros((self.gs, self.gs), dtype=np.float32)
     
     def start_map(self):
@@ -207,14 +180,7 @@ class LsegMap(Map):
         self.save_map()
     
     def save_map(self):
-        if self.rot_map:
-            print("rot map")
-            self.datamanager.save_map(color_top_down=np.rot90(self.color_top_down,k=3),
-                                    grid=np.rot90(self.grid,k=3),
-                                    obstacles=np.rot90(self.obstacles,k=3),
-                                    weight=np.rot90(self.weight,k=3))
-        else:
-            self.datamanager.save_map(color_top_down=self.color_top_down,
-                                    grid=self.grid,
-                                    obstacles=self.obstacles,
-                                    weight=self.weight)
+        self.datamanager.save_map(color_top_down=self.color_top_down,
+                                  grid=self.grid,
+                                  obstacles=self.obstacles,
+                                  weight=self.weight)

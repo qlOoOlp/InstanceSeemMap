@@ -19,6 +19,7 @@ import colorsys
 import collections
 import open3d as o3d
 from typing import Tuple, Set, Dict
+import hashlib  # 이름/ID 해시용
 
 # (선택) 범례 이미지 저장용
 try:
@@ -40,6 +41,140 @@ try:
     from map.utils.replica_categories import replica_cat
 except Exception:
     replica_cat = None  # 없으면 fallback 이름 사용
+
+# ============================================================
+# [변경] 고분별 팔레트: Lab 공간 maximin 기반의 "서로 확실히 다른" 색
+# ============================================================
+
+def _srgb_to_xyz(rgb):
+    """rgb: (...,3) in [0,1] -> XYZ (D65)."""
+    rgb = np.asarray(rgb, dtype=np.float64)
+    a = np.where(rgb <= 0.04045, rgb / 12.92, ((rgb + 0.055) / 1.055) ** 2.4)
+    M = np.array([[0.4124564, 0.3575761, 0.1804375],
+                  [0.2126729, 0.7151522, 0.0721750],
+                  [0.0193339, 0.1191920, 0.9503041]], dtype=np.float64)
+    xyz = a @ M.T
+    return xyz
+
+def _xyz_to_lab(xyz):
+    """XYZ -> CIE Lab (D65, 2°)."""
+    # D65 white
+    Xn, Yn, Zn = 0.95047, 1.00000, 1.08883
+    x = xyz[..., 0] / Xn
+    y = xyz[..., 1] / Yn
+    z = xyz[..., 2] / Zn
+    eps = 216/24389
+    kappa = 24389/27
+
+    def f(t):
+        return np.where(t > eps, np.cbrt(t), (kappa * t + 16) / 116.0)
+
+    fx, fy, fz = f(x), f(y), f(z)
+    L = 116 * fy - 16
+    a = 500 * (fx - fy)
+    b = 200 * (fy - fz)
+    return np.stack([L, a, b], axis=-1)
+
+def _delta_e76(lab1, lab2):
+    d = lab1 - lab2
+    return np.sqrt(np.sum(d * d, axis=-1))
+
+def _hsv_grid_candidates():
+    """
+    HSV 후보색 그리드(결정적 순서).
+    - H: 0..357 step 3 (120 값)
+    - S: 0.60, 0.72, 0.85 (3)
+    - V: 0.70, 0.82, 0.94 (3)
+    총 120*3*3 = 1080 후보
+    """
+    hs = np.arange(0, 360, 3, dtype=np.float64)
+    Ss = np.array([0.60, 0.72, 0.85], dtype=np.float64)
+    Vs = np.array([0.70, 0.82, 0.94], dtype=np.float64)
+    rgbs = []
+    for v in Vs:
+        for s in Ss:
+            for h in hs:
+                r, g, b = colorsys.hsv_to_rgb(h / 360.0, s, v)
+                rgbs.append([r, g, b])
+    return np.array(rgbs, dtype=np.float64)  # (1080,3)
+
+def _generate_distinct_palette(K: int) -> np.ndarray:
+    """
+    Lab 공간 maximin으로 K개 색을 고르는 결정적 팔레트.
+    반환: (K,3) in [0,1]
+    """
+    # 후보 생성
+    cand_rgb = _hsv_grid_candidates()              # (Nc,3)
+    cand_lab = _xyz_to_lab(_srgb_to_xyz(cand_rgb)) # (Nc,3)
+
+    # 시드: 대비 높은 몇 개를 먼저 고정
+    seed_hsv = [
+        (0.00, 0.80, 0.92),   # vivid red
+        (0.12, 0.80, 0.92),   # orange
+        (0.58, 0.65, 0.92),   # blue-cyan
+        (0.33, 0.80, 0.88),   # green
+        (0.75, 0.55, 0.92),   # purple
+    ]
+    seed_rgb = np.array([colorsys.hsv_to_rgb(*hsv) for hsv in seed_hsv], dtype=np.float64)
+    seed_lab = _xyz_to_lab(_srgb_to_xyz(seed_rgb))
+
+    sel_rgb = [seed_rgb[0]]
+    sel_lab = [seed_lab[0]]
+
+    # 초기 min-dist
+    min_d = _delta_e76(cand_lab, sel_lab[0][None, :])
+
+    # 나머지 시드 반영
+    for i in range(1, min(len(seed_lab), K)):
+        d = _delta_e76(cand_lab, seed_lab[i][None, :])
+        min_d = np.minimum(min_d, d)
+        sel_rgb.append(seed_rgb[i])
+        sel_lab.append(seed_lab[i])
+
+    # greedy maximin
+    while len(sel_rgb) < K:
+        idx = int(np.argmax(min_d))
+        sel_rgb.append(cand_rgb[idx])
+        sel_lab.append(cand_lab[idx])
+        d = _delta_e76(cand_lab, cand_lab[idx][None, :])
+        min_d = np.minimum(min_d, d)
+
+    return np.clip(np.array(sel_rgb, dtype=np.float64), 0.0, 1.0)
+
+def _stable_hash_index(x: int, mod: int) -> int:
+    """정수 x를 0..mod-1 범위의 결정적 인덱스로 매핑."""
+    h = hashlib.sha1(str(int(x)).encode('utf-8')).hexdigest()
+    return int(h[:8], 16) % max(1, mod)
+
+def _build_global_cat_lut(replica_cat_list, base_size: int = 256):
+    """
+    전역 팔레트 및 cid->color LUT.
+    - known_size = len(replica_cat) 또는 base_size 중 큰 값으로 팔레트 길이 결정
+    - 0..known_size-1 은 바로 인덱스로 매핑 (직관성 보존, 고정)
+    - 그 외(큰 양수/음수)는 해시로 팔레트 인덱스에 매핑
+    """
+    known_size = len(replica_cat_list) if replica_cat_list is not None else 0
+    K = max(known_size, base_size)
+    PALETTE = _generate_distinct_palette(K)  # (K,3)
+
+    def _get_color(cid: int) -> np.ndarray:
+        if cid >= 0 and cid < K:
+            return PALETTE[cid]
+        # 음수 또는 큰 양수는 해시 분산으로 안정 매핑
+        idx = _stable_hash_index(cid, K)
+        return PALETTE[idx]
+
+    return _get_color, K
+
+_GET_COLOR_FOR_CID, _PALETTE_SIZE = _build_global_cat_lut(replica_cat, base_size=384)
+
+def _stable_neg_id_from_name(name_norm: str) -> int:
+    """
+    이름 문자열을 안정적인 음수 ID로 변환 (실행/등장순서와 무관).
+    """
+    h = hashlib.sha1(name_norm.encode('utf-8')).hexdigest()
+    val = int(h[:8], 16)  # 32-bit
+    return -(1000 + (val % 10_000_000))
 
 # -------------------- 로딩 도우미 --------------------
 
@@ -146,34 +281,19 @@ def _strict_int_scalar(x) -> int:
         raise ValueError(f"정수 스칼라가 아님: shape={a.shape}, value={x}")
     return int(a.item())
 
+# (이름은 유지하되 내부 구현은 전역 규칙 사용)
 def _build_palette(category_ids):
-    """
-    tab20 기반 팔레트 → 부족하면 golden-ratio로 보강.
-    같은 cat_id는 같은 색, 다른 cat_id는 분명히 다른 색.
-    """
-    cat_ids = list(sorted(set(category_ids)))
     lut = {}
-    if _HAS_MPL:
-        cmap = cm.get_cmap('tab20', 20)
-        for i, cid in enumerate(cat_ids):
-            if i < 20:
-                lut[cid] = np.array(cmap(i)[:3], dtype=np.float32)
-            else:
-                h = ((i - 20) * 0.61803398875) % 1.0
-                r, g, b = colorsys.hsv_to_rgb(h, 0.8, 0.95)
-                lut[cid] = np.array([r, g, b], dtype=np.float32)
-    else:
-        for i, cid in enumerate(cat_ids):
-            h = (i * 0.61803398875) % 1.0
-            r, g, b = colorsys.hsv_to_rgb(h, 0.8, 0.95)
-            lut[cid] = np.array([r, g, b], dtype=np.float32)
+    for cid in sorted(set(category_ids)):
+        lut[cid] = _GET_COLOR_FOR_CID(cid)
     return lut
 
 def _print_and_save_legend(category_ids_present: Set[int], cat2color: dict, out_png="category_legend.png"):
     items = [(cid, _get_cat_name(cid)) for cid in sorted(category_ids_present, key=lambda x: (x < 0, x))]
     print("\n[Category Legend]")
     for cid, name in items:
-        col = (cat2color.get(cid, np.array([0.5, 0.5, 0.5])) * 255).astype(int)
+        col_arr = cat2color.get(cid, _GET_COLOR_FOR_CID(cid))
+        col = (np.asarray(col_arr) * 255).astype(int)
         print(f"  id={cid:>5} | {name} | color RGB={tuple(col.tolist())}")
 
     if _HAS_MPL:
@@ -183,8 +303,8 @@ def _print_and_save_legend(category_ids_present: Set[int], cat2color: dict, out_
         y = 0.95
         dy = 0.9 / max(1, len(items))
         for cid, name in items:
-            col = cat2color.get(cid, np.array([0.5, 0.5, 0.5]))
-            ax.add_patch(plt.Rectangle((0.05, y - 0.03), 0.05, 0.03, transform=ax.transAxes, color=col))
+            col_arr = cat2color.get(cid, _GET_COLOR_FOR_CID(cid))
+            ax.add_patch(plt.Rectangle((0.05, y - 0.03), 0.05, 0.03, transform=ax.transAxes, color=col_arr))
             ax.text(0.12, y - 0.02, f"[{cid}] {name}", transform=ax.transAxes, va='center', fontsize=10)
             y -= dy
         plt.tight_layout()
@@ -210,28 +330,24 @@ def _build_name_index(replica_cat_list) -> Dict[str, int]:
     return name2idx
 
 def _extract_category_id(inst: dict,
-                         name2idx: Dict[str, int],
-                         unknown_name2negid: Dict[str, int]) -> int:
+                         name2idx: Dict[str, int]) -> int:
     """
     우선순위:
       1) category_id
       2) category_idx
-      3) category(문자열) -> replica_cat 매칭 (없으면 이름별 음수 id)
+      3) category(문자열) -> replica_cat 매칭 (없으면 이름 해시 기반 음수 id)
       4) 완전 미지정 -> -9999
     """
-    # 1) category_id
     if "category_id" in inst:
         try:
             return _strict_int_scalar(inst["category_id"])
         except Exception:
             pass
-    # 2) category_idx
     if "category_idx" in inst:
         try:
             return _strict_int_scalar(inst["category_idx"])
         except Exception:
             pass
-    # 3) category (string)
     cat_name = None
     for key in ("category", "class", "label"):
         if key in inst and isinstance(inst[key], (str, np.str_, np.string_)):
@@ -241,10 +357,7 @@ def _extract_category_id(inst: dict,
         k = cat_name.lower().replace(" ", "")
         if k in name2idx:
             return int(name2idx[k])
-        if k not in unknown_name2negid:
-            unknown_name2negid[k] = -1000 - len(unknown_name2negid)
-        return unknown_name2negid[k]
-    # 4) 완전 미지정
+        return _stable_neg_id_from_name(k)
     return -9999
 
 # -------------------- 포인트클라우드 빌더 (mask 전용) --------------------
@@ -272,20 +385,23 @@ def build_point_cloud_from_instance_masks(
     gs_est = estimate_global_grid_size(instance_dict)
     half_extent = gs_est * cell_size * 0.5
 
-    # replica 이름 인덱스/미지정 이름 음수 id 맵
+    # replica 이름 인덱스
     name2idx = _build_name_index(replica_cat)
-    unknown_name2negid: Dict[str, int] = {}
 
     # 1) 수집 + category_id(폴백 포함) 추출
     entries = []
     for inst_id, inst in instance_dict.items():
         if not include_bg and inst_id in (1, 2):
             continue
+        if inst["category"] in ["rug", "mat", "floor", "wall", "ceiling", "lamp"]:
+            continue
+        if inst["category"] == "chair":
+            inst["avg_height"] -= 0.2
         m = inst.get("mask", None)
         if m is None or np.sum(m) == 0:
             continue
 
-        cat_id = _extract_category_id(inst, name2idx, unknown_name2negid)
+        cat_id = _extract_category_id(inst, name2idx)
 
         entries.append({
             "inst_id": inst_id,
@@ -303,7 +419,7 @@ def build_point_cloud_from_instance_masks(
     print("[DEBUG] category frequency (top 20):",
           ", ".join([f"{cid}:{cat_counts[cid]}" for cid in uniq_cats[:20]]))
 
-    # 3) 팔레트 구성
+    # 3) 팔레트 구성 - 전역 규칙 기반(cat_id 고정)
     cat2color = _build_palette(uniq_cats)
 
     # 4) 높이 스케일링 준비
@@ -368,7 +484,7 @@ def build_point_cloud_from_instance_masks(
         world_y = np.full_like(world_x, h_vis, dtype=np.float32)
 
         pts = np.stack([world_x, world_y, world_z], axis=1)
-        color = cat2color.get(cat_id, np.array([0.5, 0.5, 0.5], dtype=np.float32))
+        color = cat2color.get(cat_id, _GET_COLOR_FOR_CID(cat_id))  # 고정 + 고분별 팔레트
         cols  = np.tile(color, (pts.shape[0], 1))
 
         all_pts.append(pts)
@@ -445,7 +561,6 @@ def record_turntable_mp4(
         raise RuntimeError("opencv-python이 필요합니다: pip install opencv-python")
 
     vis = o3d.visualization.Visualizer()
-    # 일부 Open3D는 visible 인자를 지원(무헤드 녹화). 미지원이면 창이 뜰 수 있음.
     try:
         vis.create_window(window_name="rec", width=width, height=height, visible=False)
     except TypeError:
@@ -456,25 +571,21 @@ def record_turntable_mp4(
     opt.point_size = float(point_size)
     opt.background_color = np.array(bg, dtype=np.float32)
 
-    # 중심/반경 계산
     bbox   = pc.get_axis_aligned_bounding_box()
     center = bbox.get_center()
     extent = bbox.get_extent()
     radius = float(np.linalg.norm(extent)) * radius_scale
 
-    # 초기 카메라 파라미터 준비
     ctr   = vis.get_view_control()
-    param = ctr.convert_to_pinhole_camera_parameters()  # intrinsics 유지
+    param = ctr.convert_to_pinhole_camera_parameters()
     elev  = math.radians(elevation_deg)
 
-    # 비디오 라이터
     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
     vw = cv2.VideoWriter(out_path, fourcc, fps, (width, height))
 
     total = int(seconds * fps)
     for i in range(total):
-        azim = 2.0 * math.pi * (i / total)   # 0 → 2π
-        # 구면 좌표계에서 eye 계산 (Y축을 수직축으로 가정)
+        azim = 2.0 * math.pi * (i / total)
         eye = np.array([
             center[0] + radius * math.cos(elev) * math.cos(azim),
             center[1] + radius * math.sin(elev),
@@ -485,9 +596,9 @@ def record_turntable_mp4(
         ctr.convert_from_pinhole_camera_parameters(param)
 
         vis.poll_events(); vis.update_renderer()
-        img = np.asarray(vis.capture_screen_float_buffer(do_render=False))  # HxWx3 float32 [0..1]
-        frame = (np.clip(img, 0, 1) * 255).astype(np.uint8)                 # RGB
-        frame = frame[:, :, ::-1]  # RGB->BGR (OpenCV)
+        img = np.asarray(vis.capture_screen_float_buffer(do_render=False))
+        frame = (np.clip(img, 0, 1) * 255).astype(np.uint8)
+        frame = frame[:, :, ::-1]  # RGB->BGR
         vw.write(frame)
 
     vw.release()
@@ -498,7 +609,7 @@ def record_turntable_mp4(
 
 if __name__ == "__main__":
     # 1) 저장된 instance_dict(.pkl/.npz) 경로
-    instance_dict_path = "/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00829-QaLdnwvtxbs/map/00829-QaLdnwvtxbs_test0811mh3/02buildCatMap/categorized_instance_dict_test0811mh3.pkl"
+    instance_dict_path = "/home/vlmap_RCI/Data/habitat_sim/Replica/room1/map/room1_final_test/02buildCatMap/categorized_instance_dict_final_test.pkl"
 
     # 2) 로드
     instance_dict = load_instance_dict(instance_dict_path)
@@ -512,11 +623,11 @@ if __name__ == "__main__":
         stride=1,
         height_exaggeration=0.3,
         height_baseline="mean",
-        layer_gap=0.02
+        layer_gap=0.05
     )
 
     # 4-a) 인터랙티브 창으로 보기
-    # visualize_point_cloud(pc, point_size=3.0)
+    visualize_point_cloud(pc, point_size=3.0)
 
     # 4-b) 회전 mp4로 저장
     record_turntable_mp4(

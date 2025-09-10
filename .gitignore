@@ -11,6 +11,9 @@ Data*
 dummy*
 eval_outputs/*
 eval_outputs
-
+outputs/*
+outputs
+*.mp4
+*.png
 # Ignore etc
 *.ipynb

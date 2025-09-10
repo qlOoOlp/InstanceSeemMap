@@ -1,4 +1,5 @@
 data_path: "/home/vlmap_RCI/Data"
 data_type: "habitat_sim"
 dataset_type : "hm3dsem" # "replica" 
-scene_id: 00861-GLAQ4DNUx5U #00824-Dd4bFSTQ8gi
+scene_id: 00824-Dd4bFSTQ8gi #00824-Dd4bFSTQ8gi
+version: "test0811mh3"

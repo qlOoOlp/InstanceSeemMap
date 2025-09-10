@@ -87,16 +87,15 @@ def _call_with_retry(messages,
 
 
 class caption_regenerator:
-    def __init__(self, config, save_dir, caption_extractor):
+    def __init__(self, config, save_dir, caption_path):
         self.config = config
-        # j_p = "/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00829-QaLdnwvtxbs/map/00829-QaLdnwvtxbs_test0811mh3/05captionInstance/inst_data.json"
-        # with open(j_p, "r", encoding="utf-8") as f:
-        #     self.prev_info = json.load(f)
+        with open(caption_path, "r", encoding="utf-8") as f:
+            self.prev_info = json.load(f)
+        # self.prev_info = caption_extractor.inst_dict
         self.root_dir = config['root_path']
         self.scene_id = config['scene_id']
         self.version = config['version']
         self.save_dir = save_dir
-        self.prev_info = caption_extractor.inst_dict
         self.new_info = copy.deepcopy(self.prev_info)
         self.data_dir = os.path.join(
             self.root_dir, config['data_type'], config['dataset_type'], config['scene_id'],
@@ -109,7 +108,7 @@ class caption_regenerator:
         for inst_id, inst_val in tqdm(self.prev_info.items(), desc="Regenerating Captions"):
             # 요약 입력용 JSON 문자열 (NumPy 안전 직렬화)
             info = json.dumps(inst_val, indent=4, ensure_ascii=False, default=_convert_numpy)
-
+            print(self.new_info[inst_id])
             messages = prompt_obj.to_summarize_with_cate()[:]
             messages.append({"role": "user", "content": info})
 
@@ -121,10 +120,11 @@ class caption_regenerator:
                 max_delay=15.0     # 필요시 조정
             )
             self.new_info[inst_id]["caption"] = caption_text
-
+            print(self.new_info[inst_id])
             # 기존 captions는 제거(없어도 에러 안 나게)
             self.new_info[inst_id].pop("captions", None)
-
+            print(self.new_info[inst_id])
+            raise Exception("stop here")
             # 과도한 폭주 방지용 가벼운 간격 (선택)
             time.sleep(0.2)
 

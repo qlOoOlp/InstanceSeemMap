@@ -164,8 +164,8 @@ def parse_args_indexing_map():
                         help="Version name to append to the output map name (e.g., grid_lseg_v1.npy)")
     parser.add_argument('--room-items', nargs='+', type=str, default=["picture","cabinet","shelving","curtain","mirror","blinds"], help='List of obastacles without ["wall", "window", "door"]')
     parser.add_argument("--obstacle-items", nargs='+', type=str, default=['wall','chair','table','window','stairs','other','cabinet','sofa','bed','curtain','chest_of_drawers','sink','fireplace','stool','bathtub','counter'])
-    parser.add_argument("--max-obs-height", type=float, default=3,
-                        help="Maximum height of the instance [m] (Default: 0.5)")
+    parser.add_argument("--max-obs-height", type=float, default=1.5,
+                        help="Maximum height of the instance [m] (Default: 1.5)")
     # parser.add_argument("--visualize", action="store_true",
     #                     help="Visualize the map")
     # parser.add_argument("--save-instance-map", action="store_true",
@@ -190,13 +190,12 @@ def parse_args_indexing_map():
     return args
 
 
-
 def parse_args_roomseg():
     parser = argparse.ArgumentParser()
     parser.add_argument("--data-type", type=str, default="habitat_sim",
                         choices=["habitat_sim", "rtabmap"], help="Select data type to use (Default: habitat_sim)")
     parser.add_argument("--dataset-type", type=str,default="mp3d",
-                        choices=["mp3d","replica","scannet", "hm3dsem"],help="Dataset type to use (Default: mp3d)")
+                        choices=["mp3d","replica","scannet", "hm3dsem", "Replica"],help="Dataset type to use (Default: mp3d)")
     parser.add_argument("--scene-id", type=str, default="2t7WUuJeko7_2",
                         help="Scene name to use (Default: 2t7WUuJeko7_2)")
     parser.add_argument("--version", type=str, default="seem",#"room_seg1_floor_prior",
@@ -230,14 +229,14 @@ def parse_args_roomcls():
     parser.add_argument("--data-type", type=str, default="habitat_sim",
                         choices=["habitat_sim", "rtabmap"], help="Select data type to use (Default: habitat_sim)")
     parser.add_argument("--dataset-type", type=str,default="mp3d",
-                        choices=["mp3d","replica","scannet", "hm3dsem"],help="Dataset type to use (Default: mp3d)")
+                        choices=["mp3d","replica","scannet", "hm3dsem", "Replica"],help="Dataset type to use (Default: mp3d)")
     parser.add_argument("--scene-id", type=str, default="2t7WUuJeko7_2",
                         help="Scene name to use (Default: 2t7WUuJeko7_2)")
     parser.add_argument("--version", type=str, default="seem",#"room_seg1_floor_prior",
                         help="Version name to append to the output map name (e.g., grid_lseg_v1.npy)")
     
     parser.add_argument("--clip-version", type=str, default="ViT-B/32")
-    parser.add_argument("--lang-labels", default=["void", "living room", "kitchen", "bathroom", "bedroom", "hallway"], help="Language labels for CLIP classification")
+    parser.add_argument("--lang-labels", default=["void", "office", "rec room", "living room", "kitchen", "bathroom", "bedroom", "dining room",  "garage"], help="Language labels for CLIP classification")
     parser.add_argument("--thres-area", type=int, default=300, help="Minimum pixel count to consider a region")
     parser.add_argument("--kernel-size", type=int, default=11, help="Kernel size for morphological dilation")
 
@@ -265,6 +264,8 @@ def parse_args_extract_captions():
                         help="Scene name to use (Default: 2t7WUuJeko7_2)")
     parser.add_argument("--version", type=str, default="seem",#"room_seg1_floor_prior",
                         help="Version name to append to the output map name (e.g., grid_lseg_v1.npy)")
+    parser.add_argument("--only-regenerate", action="store_true",
+                        help="Only regenerate captions from existing ones")
     
     now_root = os.getcwd()
     now_root = os.path.join(now_root, "Data")

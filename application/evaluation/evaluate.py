@@ -12,8 +12,9 @@ def __main__():
     config = load_config("config/evaluate.yaml")
     eval = evaluation(config)
     results = eval.evaluate()
-    output_path = os.path.join(config["data_path"],"evals",f"evaluation_results_{config['vlm']}.json")
-    append_results_to_json(output_path, results)
+    if config["bool_save"]:
+        output_path = os.path.join(config["data_path"],"evals",f"evaluation_results_{config['vlm']}.json")
+        append_results_to_json(output_path, results)
 
 if __name__ == "__main__":
     __main__()

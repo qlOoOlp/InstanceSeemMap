@@ -5,8 +5,7 @@ from typing import Dict, List, Tuple
 from numpy.typing import NDArray
 from tqdm import tqdm
 from map.lseg.modules.models.lseg_net import LSegEncNet
-import clip
-from PIL import Image
+
 
 from map.utils.mapping_utils import project_point, pos2grid_id, transform_pc, depth2pc, depth2pc4Real, get_sim_cam_mat, get_sim_cam_mat4Real
 from map.utils.lseg_utils import get_lseg_feats
@@ -28,9 +27,6 @@ class gtMap(Map):
         self.pose_type = self.config["pose_type"]
 
     def processing(self):
-
-        clip_model, clip_preprocess = clip.load("ViT-B/32", device=self.device)
-        clip_model.eval()
         print("Processing data...")
         if self.pose_type == "mat":
             base_pose = self.datamanager.get_init_pose()
@@ -69,13 +65,6 @@ class gtMap(Map):
             pc_transform = tf @ self.base_transform @ self.base2cam_tf
             pc_global = transform_pc(pc, pc_transform)
             rgb_cam_mat = get_sim_cam_mat(rgb.shape[0],rgb.shape[1])
-
-            
-            image = clip_preprocess(Image.fromarray(rgb)).unsqueeze(0).to(self.device)
-            with torch.no_grad():
-                clip_features = clip_model.encode_image(image).cpu().numpy().flatten()
-
-
             for i, (p, p_local) in enumerate(zip(pc_global.T, pc.T)):
                 # if p_local[2] == 0: continue
                 x, y = pos2grid_id(self.gs, self.cs, p[0], p[1])
@@ -91,8 +80,6 @@ class gtMap(Map):
                     self.color_top_down[y,x] = rgb_v
                     self.color_top_down_height[y,x] = p[2]
                     self.gt[y,x] = semantic_v
-                self.clip_grid[y, x] = (self.clip_grid[y, x] * self.weight[y, x] + clip_features) / (self.weight[y, x] + 1)
-                self.weight[y,x] += 1
                 if p[2] < 1e-4:#self.camera_height:
                     continue
                 self.obstacles[y,x] = 0
@@ -112,8 +99,6 @@ class gtMap(Map):
         self.color_top_down = np.zeros((self.gs, self.gs, 3), dtype=np.uint8)
         self.gt = np.zeros((self.gs, self.gs), dtype=int)
         self.obstacles = np.ones((self.gs, self.gs), dtype=np.uint8)
-        self.clip_grid = np.zeros((self.gs, self.gs, 512), dtype=float)
-        self.weight = np.zeros((self.gs, self.gs), dtype=np.float32)
     
     def start_map(self):
         self._init_map()
@@ -123,12 +108,8 @@ class gtMap(Map):
         if self.rot_map:
             self.datamanager.save_map(color_top_down=np.rot90(self.color_top_down,k=1),
                                     grid=np.rot90(self.gt,k=1),
-                                    weight=np.rot90(self.weight,k=1),
-                                    clip_grid=np.rot90(self.clip_grid,k=1),
                                     obstacles=np.rot90(self.obstacles,k=1))
         else:
             self.datamanager.save_map(color_top_down=self.color_top_down,
                                     grid=self.gt,
-                                    weight = self.weight,
-                                    clip_grid = self.clip_grid,
                                     obstacles=self.obstacles)

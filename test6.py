@@ -19,10 +19,12 @@ import colorsys
 import open3d as o3d
 
 # ====== 사용자 조절 파라미터 ======
-ROOM_ID       = 1          # 단일 방 ID (ROOM_IDS가 비어있을 때 fallback)
-ROOM_IDS      = [1,2,3,4,5,6,7,8]#[1,2,3,4,5,6,7,8,9,10,11,12] #[1,2,3,4,5,6,7,8]#[1,2,3,4,5,6]        # ▶▶ 리스트로 여러 방 표시
+ROOM_ID       = 2          # 단일 방 ID (ROOM_IDS가 비어있을 때 fallback)
+ROOM_IDS      = [1,2,3,4,5,6,7,8,9,10,11,12] #[1,2,3,4,5,6,7,8]#[1,2,3,4,5,6]        # ▶▶ 리스트로 여러 방 표시
 ROOM_PUSH_DIR = "up"     # "down": 인스턴스보다 아래(더 멀리), "up": 위(더 가까이)
 ROOM_MARGIN   = 0.50       # 인스턴스와 룸 사이 여유(m)
+# check_cat     = [20]#59,70]#,99]#,102, -1]#,93,94,95]#["picture", "sculpture","logo","panel","pillar"]#, "table", "sofa"]  # ▶ 원하는 카테고리 라벨 하드코딩
+check_id = 56
 # ================================
 
 # -------------------- 로딩 도우미 --------------------
@@ -241,7 +243,7 @@ def build_point_cloud_from_instance_masks(
 
     for inst_id, inst in instance_dict.items():
         if inst_id ==1 or inst_id ==2 : continue
-        if inst["category"] in ["rug", "mat", "floor", "wall", "ceiling", "lamp","undefined","wall-cabinet","wall-plug"]: continue
+        if inst["category"] in ["rug", "mat", "floor", "wall", "ceiling", "lamp"]: continue
         if not include_bg and inst_id in (1, 2):
             continue
         m = inst.get("mask", None)
@@ -282,7 +284,20 @@ def build_point_cloud_from_instance_masks(
         elif inst_id == 2:
             color = np.array([0.8, 0.8, 0.8], dtype=np.float32)  # floor: 밝은 회색
         else:
-            color = _id_to_rgb(inst_id, s=0.70, v=0.95)
+            # cat = inst.get("categories", "")
+            # ccc = inst.get("category","")
+            # # if ccc == "window": print(inst_id)
+            # bb=False
+            # for c in cat[:1]:
+            #     if c in check_cat:
+            #         bb = True
+            # if ccc=="chair" or ccc=="sofa":#bb or inst_id == 312:#cat in check_cat:
+            #     print(inst_id)
+            if inst_id == check_id:
+                color = np.array([1.0, 0.0, 0.0], dtype=np.float32)  # 빨간색
+            else:
+                # color = np.array([0.5, 0.5, 0.5], dtype=np.float32)  # 회색
+                color = np.array([0.7, 0.7, 0.7], dtype=np.float32)  # 회색
         cols = np.tile(color, (pts.shape[0], 1))
 
         all_pts.append(pts)
@@ -301,6 +316,7 @@ def build_point_cloud_from_instance_masks(
 
 
 # -------------------- 룸 바닥 오버레이(파스텔) --------------------
+
 def _room_id_to_pastel(room_id: int) -> np.ndarray:
     """
     방 색상: 멀리 떨어진 12-색 기본 팔레트(30° 간격) + room_id 기반 permute + 소량 오프셋.
@@ -337,7 +353,6 @@ def _room_id_to_pastel(room_id: int) -> np.ndarray:
     c = np.array([r, g_, b], dtype=np.float32)
     w = np.array([1.0, 1.0, 1.0], dtype=np.float32)
     return (white_mix * w + (1.0 - white_mix) * c).astype(np.float32)
-
 
 def build_room_floor_pointcloud(
     room_map: np.ndarray,
@@ -542,7 +557,7 @@ def visualize_point_cloud(pc: o3d.geometry.PointCloud, point_size: float = 2.5):
     opt = vis.get_render_option()
     opt.point_size = float(point_size)
     # opt.background_color = np.array([1.0, 1.0, 1.0], dtype=np.float32)  # 흰색 배경
-    opt.background_color = np.array([0.0, 0.0, 0.0], dtype=np.float32)  # ★ 검정색 배경
+    opt.background_color = np.array([0.0, 0.0, 0.0], dtype=np.float32)  # 흰색 배경
 
     # 탑뷰 세팅
     bbox = pc.get_axis_aligned_bounding_box()
@@ -587,11 +602,13 @@ def load_binary_mask_and_bbox(path: str):
 
 if __name__ == "__main__":
     # 1) 저장된 instance_dict(.pkl/.npz) 경로
-    instance_dict_path = "/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00873-bxsVRursffK/map/00873-bxsVRursffK_test0811mh3/02buildCatMap/categorized_instance_dict_test0811mh3.pkl"#"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00862-LT9Jq6dN3Ea/map/00862-LT9Jq6dN3Ea_test0811mh6/02buildCatMap/categorized_instance_dict_test0811mh6.pkl"#"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00829-QaLdnwvtxbs/map/00829-QaLdnwvtxbs_test0811mh3/02buildCatMap/categorized_instance_dict_test0811mh3.pkl"#"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00824-Dd4bFSTQ8gi/map/00824-Dd4bFSTQ8gi_test0811mh3/02buildCatMap/categorized_instance_dict_test0811mh3.pkl"#"/home/vlmap_RCI/Data/habitat_sim/Replica/office3/map/office3_final_test/02buildCatMap/categorized_instance_dict_final_test.pkl"#"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00873-bxsVRursffK/map/00873-bxsVRursffK_test0811mh3/02buildCatMap/categorized_instance_dict_test0811mh3.pkl"#"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00862-LT9Jq6dN3Ea/map/00862-LT9Jq6dN3Ea_test0811mh6/02buildCatMap/categorized_instance_dict_test0811mh6.pkl"#"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00824-Dd4bFSTQ8gi/map/00824-Dd4bFSTQ8gi_test0811mh3/02buildCatMap/categorized_instance_dict_test0811mh3.pkl"#"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00829-QaLdnwvtxbs/map/00829-QaLdnwvtxbs_test0811mh3/02buildCatMap/categorized_instance_dict_test0811mh3.pkl"#"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00829-QaLdnwvtxbs/map/00829-QaLdnwvtxbs_test0811mh3/02buildCatMap/categorized_instance_dict_test0811mh3.pkl"#"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00862-LT9Jq6dN3Ea/map/00862-LT9Jq6dN3Ea_test0811mh6/02buildCatMap/categorized_instance_dict_test0811mh6.pkl"#"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00829-QaLdnwvtxbs/map/00829-QaLdnwvtxbs_test0811mh3/01buildFeatMap/instance_dict_test0811mh3.pkl" #"/home/vlmap_RCI/Data/habitat_sim/mp3d/2t7WUuJeko7_2/map/2t7WUuJeko7_2_rgbmask/01buildFeatMap/instance_dict_rgbmask.pkl"
+    scene_id = "00824-Dd4bFSTQ8gi"
+    version = "test0811mh3"
+    instance_dict_path = f"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/{scene_id}/map/{scene_id}_{version}/02buildCatMap/categorized_instance_dict_{version}.pkl"#"/home/vlmap_RCI/Data/habitat_sim/Replica/office3/map/office3_final_test/02buildCatMap/categorized_instance_dict_final_test.pkl"#"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00873-bxsVRursffK/map/00873-bxsVRursffK_{version}/02buildCatMap/categorized_instance_dict_{version}.pkl"#"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00862-LT9Jq6dN3Ea/map/00862-LT9Jq6dN3Ea_test0811mh6/02buildCatMap/categorized_instance_dict_test0811mh6.pkl"#"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/{scene_id}/map/{scene_id}_{version}/02buildCatMap/categorized_instance_dict_{version}.pkl"#"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00829-QaLdnwvtxbs/map/00829-QaLdnwvtxbs_{version}/02buildCatMap/categorized_instance_dict_{version}.pkl"#"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00829-QaLdnwvtxbs/map/00829-QaLdnwvtxbs_{version}/02buildCatMap/categorized_instance_dict_{version}.pkl"#"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00862-LT9Jq6dN3Ea/map/00862-LT9Jq6dN3Ea_test0811mh6/02buildCatMap/categorized_instance_dict_test0811mh6.pkl"#"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00829-QaLdnwvtxbs/map/00829-QaLdnwvtxbs_{version}/01buildFeatMap/instance_dict_{version}.pkl" #"/home/vlmap_RCI/Data/habitat_sim/mp3d/2t7WUuJeko7_2/map/2t7WUuJeko7_2_rgbmask/01buildFeatMap/instance_dict_rgbmask.pkl"
 
     # 2) 크롭/룸 경로 (이전과 동일한 예시)
-    crop_mask_path = "/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00873-bxsVRursffK/map/00873-bxsVRursffK_test0811mh3/01buildFeatMap/obstacles_test0811mh3.npy"#"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00862-LT9Jq6dN3Ea/map/00862-LT9Jq6dN3Ea_test0811mh6/01buildFeatMap/obstacles_test0811mh6.npy"#"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00829-QaLdnwvtxbs/map/00829-QaLdnwvtxbs_test0811mh3/01buildFeatMap/obstacles_test0811mh3.npy"#"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00824-Dd4bFSTQ8gi/map/00824-Dd4bFSTQ8gi_test0811mh3/01buildFeatMap/obstacles_test0811mh3.npy"#"/home/vlmap_RCI/Data/habitat_sim/Replica/office3/map/office3_final_test/01buildFeatMap/obstacles_final_test.npy"#"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00873-bxsVRursffK/map/00873-bxsVRursffK_test0811mh3/01buildFeatMap/obstacles_test0811mh3.npy"#"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00862-LT9Jq6dN3Ea/map/00862-LT9Jq6dN3Ea_test0811mh6/01buildFeatMap/obstacles_test0811mh6.npy"#"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00824-Dd4bFSTQ8gi/map/00824-Dd4bFSTQ8gi_test0811mh3/01buildFeatMap/obstacles_test0811mh3.npy"#"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00829-QaLdnwvtxbs/map/00829-QaLdnwvtxbs_test0811mh3/01buildFeatMap/obstacles_test0811mh3.npy"#"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00829-QaLdnwvtxbs/map/00829-QaLdnwvtxbs_test0811mh3/01buildFeatMap/obstacles_test0811mh3.npy" #"/home/vlmap_RCI/Data/habitat_sim/mp3d/2t7WUuJeko7_2/map/2t7WUuJeko7_2_rgbmask/01buildFeatMap/obstacles_rgbmask.npy"  # 0/1
-    room_map_path  = "/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00873-bxsVRursffK/map/00873-bxsVRursffK_test0811mh3/04classificateRoom/room_map.npy"#"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00862-LT9Jq6dN3Ea/map/00862-LT9Jq6dN3Ea_test0811mh6/04classificateRoom/room_map.npy"#"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00829-QaLdnwvtxbs/map/00829-QaLdnwvtxbs_test0811mh3/04classificateRoom/room_map.npy"#"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00824-Dd4bFSTQ8gi/map/00824-Dd4bFSTQ8gi_test0811mh3/04classificateRoom/room_map.npy"#"/home/vlmap_RCI/Data/habitat_sim/Replica/office3/map/office3_final_test/04classificateRoom/room_map.npy"#"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00862-LT9Jq6dN3Ea/map/00862-LT9Jq6dN3Ea_test0811mh6/04classificateRoom/room_map.npy"#"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00829-QaLdnwvtxbs/map/00829-QaLdnwvtxbs_test0811mh3/04classificateRoom/room_map.npy"#"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00829-QaLdnwvtxbs/map/00829-QaLdnwvtxbs_test0811mh3/04classificateRoom/room_map.npy" #"/home/vlmap_RCI/Data/habitat_sim/mp3d/2t7WUuJeko7_2/map/2t7WUuJeko7_2_final_test2/04classificateRoom/room_map.npy"     # 2D int
+    crop_mask_path = f"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/{scene_id}/map/{scene_id}_{version}/01buildFeatMap/obstacles_{version}.npy"#"/home/vlmap_RCI/Data/habitat_sim/Replica/office3/map/office3_final_test/01buildFeatMap/obstacles_final_test.npy"#"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00873-bxsVRursffK/map/00873-bxsVRursffK_{version}/01buildFeatMap/obstacles_{version}.npy"#"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00862-LT9Jq6dN3Ea/map/00862-LT9Jq6dN3Ea_test0811mh6/01buildFeatMap/obstacles_test0811mh6.npy"#"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/{scene_id}/map/{scene_id}_{version}/01buildFeatMap/obstacles_{version}.npy"#"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00829-QaLdnwvtxbs/map/00829-QaLdnwvtxbs_{version}/01buildFeatMap/obstacles_{version}.npy"#"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00829-QaLdnwvtxbs/map/00829-QaLdnwvtxbs_{version}/01buildFeatMap/obstacles_{version}.npy" #"/home/vlmap_RCI/Data/habitat_sim/mp3d/2t7WUuJeko7_2/map/2t7WUuJeko7_2_rgbmask/01buildFeatMap/obstacles_rgbmask.npy"  # 0/1
+    room_map_path  = f"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/{scene_id}/map/{scene_id}_{version}/04classificateRoom/room_map.npy"#"/home/vlmap_RCI/Data/habitat_sim/Replica/office3/map/office3_final_test/04classificateRoom/room_map.npy"#"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00862-LT9Jq6dN3Ea/map/00862-LT9Jq6dN3Ea_test0811mh6/04classificateRoom/room_map.npy"#"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00829-QaLdnwvtxbs/map/00829-QaLdnwvtxbs_{version}/04classificateRoom/room_map.npy"#"/home/vlmap_RCI/Data/habitat_sim/hm3dsem/00829-QaLdnwvtxbs/map/00829-QaLdnwvtxbs_{version}/04classificateRoom/room_map.npy" #"/home/vlmap_RCI/Data/habitat_sim/mp3d/2t7WUuJeko7_2/map/2t7WUuJeko7_2_final_test2/04classificateRoom/room_map.npy"     # 2D int
 
     # ---- 로드 ----
     instance_dict = load_instance_dict(instance_dict_path)

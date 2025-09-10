@@ -19,7 +19,7 @@ class Map(ABC):
         else: self.data_path = os.path.join(self.root_path, f"{self.data_type}/{self.config['scene_id']}") 
         self.map_path = os.path.join(self.data_path, f"map/{self.config['scene_id']}_{self.config['version']}/01buildFeatMap/")
         if self.config["only_gt"]:
-            self.datamanager = DataManager4gt(version=self.config["version"], data_path=self.data_path, map_path=self.map_path,start_frame=self.start_frame,end_frame=self.end_frame)
+            self.datamanager = DataManager4gt(version=self.config["version"], data_path=self.data_path, map_path=self.map_path,start_frame=self.start_frame,end_frame=self.end_frame,skip_frames=self.config['skip_frames'])
         else:
             if self.data_type == "rtabmap":
                 self.datamanager = DataManager4Real(version=self.config["version"], data_path=self.data_path, map_path=self.map_path,start_frame=self.start_frame,end_frame=self.end_frame)

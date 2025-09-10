@@ -72,6 +72,8 @@ def visualize_rgb(rgb, bbox=None, is_show=True, save_path=None, save_name=None):
     return rgb
 
 def get_2Dmap(categories, map_data, vlm_type=None, vlm=None, bbox=None, is_categorized=False, floor_mask=True, is_show=False, save_path=None, save_name=None):
+    if bbox:
+        map_data = map_data[bbox[0]:bbox[1]+1, bbox[2]:bbox[3]+1]
     if not is_categorized:
         if not vlm:
             raise ValueError("VLM must be provided for map visualization.")
@@ -85,6 +87,7 @@ def get_2Dmap(categories, map_data, vlm_type=None, vlm=None, bbox=None, is_categ
         map_feats = map_data.reshape((-1, map_data.shape[-1]))
         scores_list = map_feats @ text_feats.T
         predicts = np.argmax(scores_list, axis=1)
+
         if bbox:
             predicts = predicts.reshape((bbox[1]-bbox[0]+1, bbox[3]-bbox[2]+1))
         else:

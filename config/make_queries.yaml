@@ -1,31 +1,36 @@
 data_path: "/home/vlmap_RCI/Data"
 data_type: "habitat_sim"
 dataset_type : "hm3dsem" # "replica" 
-scene_id: 00861-GLAQ4DNUx5U #00824-Dd4bFSTQ8gi
+scene_id: 00824-Dd4bFSTQ8gi #00824-Dd4bFSTQ8gi
 
 
 
 targets:
-  12:
-    frame_id: 0
-    instance_category: "chair"
-    room_category: "living room"
+  228:
+    frame_id: 720
+    instance_category: "pillow"
+    room_category: "kitchen"
     query_type:
       - "object"
       - "room"
       - "caption"
       - "mixed"
-  11:
-    frame_id: 0
-    instance_category: "chair"
-    room_category: "living room"
+      # - "abs"
+      - "mixed_a"
+  338:
+    frame_id: 2085
+    instance_category: "cabinet"
+    room_category: "bedroom"
     query_type:
       - "object"
       - "room"
       - "caption"
       - "mixed"
+      # - "abs"
+      - "mixed_a"
+      
   10:
-    frame_id: 0
+    frame_id: 170
     instance_category: "chair"
     room_category: "living room"
     query_type:
@@ -33,12 +38,377 @@ targets:
       - "room"
       - "caption"
       - "mixed"
-  9:
-    frame_id: 0
-    instance_category: "chair"
+      # - "abs"
+      - "mixed_a"
+      
+  172:
+    frame_id: 627
+    instance_category: "table"
+    room_category: "kitchen"
+    query_type:
+      - "object"
+      - "room"
+      - "caption"
+      - "mixed"
+      # - "abs"
+      - "mixed_a"
+      
+  364:
+    frame_id: 1708
+    instance_category: "curtain"
+    room_category: "bathroom"
+    query_type:
+      - "object"
+      - "room"
+      - "caption"
+      - "mixed"
+      # - "abs"
+      - "mixed_a"
+
+      
+  380:
+    frame_id: 1960
+    instance_category: "towel"
+    room_category: "bathroom"
+    query_type:
+      - "object"
+      - "room"
+      - "caption"
+      - "mixed"
+      # - "abs"
+      - "mixed_a"
+
+      
+  185:
+    frame_id: 355
+    instance_category: "sink"
+    room_category: "kitchen"
+    query_type:
+      - "object"
+      - "room"
+      - "caption"
+      - "mixed"
+      # - "abs"
+      - "mixed_a"
+
+      
+  280:
+    frame_id: 1181
+    instance_category: "bed"
+    room_category: "bedroom"
+    query_type:
+      - "object"
+      - "room"
+      - "caption"
+      - "mixed"
+      # - "abs"
+      - "mixed_a"
+
+      
+  349:
+    frame_id: 1754
+    instance_category: "toilet"
+    room_category: "bathroom"
+    query_type:
+      - "object"
+      - "room"
+      - "caption"
+      - "mixed"
+      # - "abs"
+      - "mixed_a"
+
+      
+  96:
+    frame_id: 760
+    instance_category: "flower vase"
+    room_category: "dining room"
+    query_type:
+      - "object"
+      - "room"
+      - "caption"
+      - "mixed"
+      # - "abs"
+      - "mixed_a"
+
+      
+  135:
+    frame_id: 1095
+    instance_category: "desk"
     room_category: "living room"
     query_type:
       - "object"
       - "room"
       - "caption"
       - "mixed"
+      # - "abs"
+      - "mixed_a"
+
+      
+  171:
+    frame_id: 725
+    instance_category: "couch"
+    room_category: "kitchen"
+    query_type:
+      - "object"
+      - "room"
+      - "caption"
+      - "mixed"
+      # - "abs"
+      - "mixed_a"
+
+      
+  176:
+    frame_id: 655
+    instance_category: "stool"
+    room_category: "kitchen"
+    query_type:
+      - "object"
+      - "room"
+      - "caption"
+      - "mixed"
+      # - "abs"
+      - "mixed_a"
+
+
+      
+  232:
+    frame_id: 331
+    instance_category: "microwave"
+    room_category: "kitchen"
+    query_type:
+      - "object"
+      - "room"
+      - "caption"
+      - "mixed"
+      # - "abs"
+      - "mixed_a"
+
+      
+  179:
+    frame_id: 541
+    instance_category: "refrigerator"
+    room_category: "kitchen"
+    query_type:
+      - "object"
+      - "room"
+      - "caption"
+      - "mixed"
+      # - "abs"
+      - "mixed_a"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  # # 349:
+  # #   frame_id: 1754
+  # #   instance_category: "toilet"
+  # #   room_category: "bathroom"
+  # #   query_type:
+  # #     - "object"
+  # #     - "room"
+  # #     - "caption"
+  # #     - "mixed"
+  # #     # - "abs"
+  # #     - "mixed_a"
+  # # 9:
+  # #   frame_id: 94
+  # #   instance_category: "sofa"
+  # #   room_category: "living room"
+  # #   query_type:
+  # #     - "object"
+  # #     - "room"
+  # #     - "caption"
+  # #     - "mixed"
+  # #     # - "abs"
+  # #     - "mixed_a"
+  # # 225:
+  # #   frame_id: 722
+  # #   instance_category: "pillow"
+  # #   room_category: "kitchen"
+  # #   query_type:
+  # #     - "object"
+  # #     - "room"
+  # #     - "caption"
+  # #     - "mixed"
+  # #     # - "abs"
+  # #     - "mixed_a"
+  # # 96:
+  # #   frame_id: 760
+  # #   instance_category: "flower vase"
+  # #   room_category: "dining room"
+  # #   query_type:
+  # #     - "object"
+  # #     - "room"
+  # #     - "caption"
+  # #     - "mixed"
+  # #     # - "abs"
+  # #     - "mixed_a"
+  # # 171:
+  # #   frame_id: 725
+  # #   instance_category: "couch"
+  # #   room_category: "kitchen"
+  # #   query_type:
+  # #     - "object"
+  # #     - "room"
+  # #     - "caption"
+  # #     - "mixed"
+  # #     # - "abs"
+  # #     - "mixed_a"
+  # 187:
+  #   frame_id: 380
+  #   instance_category: "kitchen counter"
+  #   room_category: "kitchen"
+  #   query_type:
+  #     - "object"
+  #     - "room"
+  #     - "caption"
+  #     - "mixed"
+  #     # - "abs"
+  #     - "mixed_a"
+  # # 135:
+  # #   frame_id: 1095
+  # #   instance_category: "desk"
+  # #   room_category: "living room"
+  # #   query_type:
+  # #     - "object"
+  # #     - "room"
+  # #     - "caption"
+  # #     - "mixed"
+  # #     # - "abs"
+  # #     - "mixed_a"
+  # 136:
+  #   frame_id: 1095
+  #   instance_category: "desk chair"
+  #   room_category: "living room"
+  #   query_type:
+  #     - "object"
+  #     - "room"
+  #     - "caption"
+  #     - "mixed"
+  #     # - "abs"
+  #     - "mixed_a"
+  # 363:
+  #   frame_id: 1723
+  #   instance_category: "bathtub"
+  #   room_category: "bathroom"
+  #   query_type:
+  #     - "object"
+  #     - "room"
+  #     - "caption"
+  #     - "mixed"
+  #     # - "abs"
+  #     - "mixed_a"
+  # # 232:
+  # #   frame_id: 331
+  # #   instance_category: "microwave"
+  # #   room_category: "kitchen"
+  # #   query_type:
+  # #     - "object"
+  # #     - "room"
+  # #     - "caption"
+  # #     - "mixed"
+  # #     # - "abs"
+  # #     - "mixed_a"
+  # 139:
+  #   frame_id: 1100
+  #   instance_category: "book"
+  #   room_category: "living room"
+  #   query_type:
+  #     - "object"
+  #     - "room"
+  #     - "caption"
+  #     - "mixed"
+  #     # - "abs"
+  #     - "mixed_a"
+  # # 179:
+  # #   frame_id: 541
+  # #   instance_category: "refrigerator"
+  # #   room_category: "kitchen"
+  # #   query_type:
+  # #     - "object"
+  # #     - "room"
+  # #     - "caption"
+  # #     - "mixed"
+  # #     # - "abs"
+  # #     - "mixed_a"
+  # # 1:
+  # #   frame_id: 98
+  # #   instance_category: "sofa"
+  # #   room_category: "living room"
+  # #   query_type:
+  # #     - "object"
+  # #     - "room"
+  # #     - "caption"
+  # #     - "mixed"
+  # #     # - "abs"
+  # #     - "mixed_a"
+  # # 2:
+  # #   frame_id: 98
+  # #   instance_category: "window"
+  # #   room_category: "living room"
+  # #   query_type:
+  # #     - "object"
+  # #     - "room"
+  # #     - "caption"
+  # #     - "mixed"
+  # #     # - "abs"
+  # #     - "mixed_a"
+  # # 10:
+  # #   frame_id: 0
+  # #   instance_category: "chair"
+  # #   room_category: "living room"
+  # #   query_type:
+  # #     - "object"
+  # #     - "room"
+  # #     - "caption"
+  # #     - "mixed"
+  # # 9:
+  # #   frame_id: 0
+  # #   instance_category: "chair"
+  # #   room_category: "living room"
+  # #   query_type:
+  # #     - "object"
+  # #     - "room"
+  # #     - "caption"
+  # #     - "mixed"

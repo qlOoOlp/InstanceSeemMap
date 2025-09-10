@@ -11,3 +11,4 @@ def load_config(yaml_file_path):
     except yaml.YAMLError as e:
         print(f"Error parsing YAML file: {e}")
         return None
+

@@ -7,6 +7,8 @@ from sklearn.cluster import DBSCAN
 
 from map.utils.matterport3d_categories import mp3dcat
 from map.utils.replica_categories import replica_cat
+from map.utils.hm3dsem_categories import hm3dsem_cat, build_obstacle_filter
+
 from map.utils.clip_utils import get_text_feats
 from map.seem.base_model import build_vl_model
 from map.mapbuilder.utils.datamanager import DataManager, DataManager4Real, DataLoader
@@ -85,9 +87,12 @@ class CategorizedMapBuilder():
             self.categories = mp3dcat
         elif self.conf["dataset_type"] in ["Replica", "replica"]:
             self.categories = replica_cat
+        elif self.conf["dataset_type"] == "hm3dsem":
+            self.categories = hm3dsem_cat #! hm3dsem cat으로!
+            obs_extracter = build_obstacle_filter()
+            self.obstacles = obs_extracter(self.categories)
         else:
-            self.categories = replica_cat #! hm3dsem cat으로!
-            # raise ValueError(f"dataset_type {self.conf['dataset_type']} not supported")
+            raise ValueError(f"dataset_type {self.conf['dataset_type']} not supported")
         text_feats = self.model.encode_prompt(self.categories, task = "default")
         text_feats = text_feats.cpu().numpy()
         instance_feat = []
