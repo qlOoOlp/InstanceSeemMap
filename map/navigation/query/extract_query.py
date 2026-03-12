@@ -30,7 +30,11 @@ class queries_extractor:
         prompt_obj = GPTPrompt()
         self.query_inst_dict = prompt_obj.make_queries(self.data_dir, self.targets)
         # print(self.query_inst_dict)
+        ll = len(self.query_inst_dict)
+        nn = 0
         for target_id, target_val in self.query_inst_dict.items():
+            print(f"{nn}/{ll}")
+            nn+=1
             # print(target_val["msgs"]["object"].keys())
             # print(target_val["instance_category"], target_val["room_category"], target_val["frame_id"])
             queries = dict()

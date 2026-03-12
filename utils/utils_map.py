@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
 import os
+from typing import Tuple
 import matplotlib.patches as mpatches
 import cv2
 import open3d as o3d
@@ -9,6 +10,117 @@ import matplotlib.cm as cm
 
 from map.utils.clip_utils import get_text_feats
 from map.utils.mapping_utils import load_map, save_map, get_new_pallete, get_new_mask_pallete
+
+
+CLIP_FEAT_DIM_DICT = {
+    "RN50": 1024,
+    "RN101": 512,
+    "RN50x4": 640,
+    "RN50x16": 768,
+    "RN50x64": 1024,
+    "ViT-B/32": 512,
+    "ViT-B/16": 512,
+    "ViT-L/14": 768,
+}
+
+
+def normalize_rows(x: np.ndarray, eps: float = 1e-6) -> np.ndarray:
+    """Row-wise L2 normalize for (N, D) arrays."""
+    if x.ndim != 2:
+        raise ValueError(f"x must be 2D (N,D), got shape={x.shape}")
+    norms = np.linalg.norm(x, axis=1, keepdims=True)
+    safe = np.maximum(norms, eps)
+    return x / safe
+
+
+def compute_gridwise_category_map(
+    grid: np.ndarray,
+    text_feats: np.ndarray,
+    valid_mask: np.ndarray = None,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Compute category index/score map from dense feature grid.
+
+    Args:
+        grid: (H, W, D) dense feature map.
+        text_feats: (C, D) category text embeddings.
+        valid_mask: optional (H, W) boolean mask for valid cells (e.g., weight > 0).
+    Returns:
+        pred_idx: (H, W) int32 category index map.
+        pred_score: (H, W) float32 max similarity map.
+    """
+    if grid.ndim != 3:
+        raise ValueError(f"grid must be 3D (H,W,D), got shape={grid.shape}")
+    if text_feats.ndim != 2:
+        raise ValueError(f"text_feats must be 2D (C,D), got shape={text_feats.shape}")
+    if grid.shape[-1] != text_feats.shape[-1]:
+        raise ValueError(
+            f"feature dim mismatch: grid D={grid.shape[-1]}, text D={text_feats.shape[-1]}"
+        )
+
+    h, w, d = grid.shape
+    flat_grid = grid.reshape(-1, d).astype(np.float32)
+    flat_text = text_feats.astype(np.float32)
+
+    grid_norms = np.linalg.norm(flat_grid, axis=1)
+    feat_valid = grid_norms > 1e-6
+
+    norm_grid = np.zeros_like(flat_grid, dtype=np.float32)
+    norm_grid[feat_valid] = normalize_rows(flat_grid[feat_valid])
+    norm_text = normalize_rows(flat_text)
+
+    scores = norm_grid @ norm_text.T
+    pred_idx = np.argmax(scores, axis=1).astype(np.int32)
+    pred_score = np.max(scores, axis=1).astype(np.float32)
+
+    pred_idx[~feat_valid] = 0
+    pred_score[~feat_valid] = 0.0
+
+    if valid_mask is not None:
+        if valid_mask.shape != (h, w):
+            raise ValueError(
+                f"valid_mask shape mismatch: expected {(h, w)}, got {valid_mask.shape}"
+            )
+        flat_valid = valid_mask.reshape(-1).astype(bool)
+        pred_idx[~flat_valid] = 0
+        pred_score[~flat_valid] = 0.0
+
+    return pred_idx.reshape(h, w), pred_score.reshape(h, w)
+
+
+def load_text_features_by_vlm(
+    vlm: str,
+    categories,
+    clip_version: str = "ViT-B/32",
+    seem_input_size: int = 360,
+    device: str = "cpu",
+) -> np.ndarray:
+    """
+    Build category text features for grid-wise classification.
+    Supports only lseg/seem.
+    """
+    vlm = str(vlm).lower()
+    if vlm == "lseg":
+        import clip
+
+        if clip_version not in CLIP_FEAT_DIM_DICT:
+            raise ValueError(f"Unsupported clip version: {clip_version}")
+        model, _ = clip.load(clip_version, device=device)
+        model.eval()
+        feat_dim = CLIP_FEAT_DIM_DICT[clip_version]
+        return get_text_feats(categories, model, feat_dim).astype(np.float32)
+
+    if vlm == "seem":
+        import torch
+        from map.seem.base_model import build_vl_model
+
+        model = build_vl_model("seem", input_size=seem_input_size, device=device)
+        with torch.no_grad():
+            text_feats = model.encode_prompt(categories, task="default")
+        return text_feats.cpu().numpy().astype(np.float32)
+
+    raise ValueError(f"Unsupported vlm for grid-wise text features: {vlm}")
+
 
 def get_map_bbox(obstacles, obstacle_index=0):
     x_indices, y_indices = np.where(obstacles == obstacle_index)
@@ -28,6 +140,8 @@ def viz(map, title=None, is_show=True, save_path=None, save_name=None):
             plt.savefig(os.path.join(save_path, f"{save_name}.png"), bbox_inches='tight', pad_inches=0.1)
         if is_show:
             plt.show(block=False)
+        else:
+            plt.close()
 
 def viz_map(predicts, instance, floor_mask=False, title=None, is_show=True, save_path=None, save_name=None, bool_block=False, bbox=None):
     if bbox:
@@ -52,6 +166,8 @@ def viz_map(predicts, instance, floor_mask=False, title=None, is_show=True, save
         plt.savefig(os.path.join(save_path, f"{save_name}.png"), bbox_inches='tight', pad_inches=0.1)
     if is_show:
         plt.show(block=bool_block)
+    else:
+        plt.close()
 
     return predicts, instance
 
@@ -71,9 +187,23 @@ def visualize_rgb(rgb, bbox=None, is_show=True, save_path=None, save_name=None):
     viz(rgb, title=save_name, is_show=is_show, save_path=save_path, save_name=save_name)
     return rgb
 
-def get_2Dmap(categories, map_data, vlm_type=None, vlm=None, bbox=None, is_categorized=False, floor_mask=True, is_show=False, save_path=None, save_name=None):
+def get_2Dmap(
+    categories,
+    map_data,
+    vlm_type=None,
+    vlm=None,
+    bbox=None,
+    is_categorized=False,
+    floor_mask=True,
+    is_show=False,
+    save_path=None,
+    save_name=None,
+    valid_mask=None,
+):
     if bbox:
         map_data = map_data[bbox[0]:bbox[1]+1, bbox[2]:bbox[3]+1]
+        if valid_mask is not None:
+            valid_mask = valid_mask[bbox[0]:bbox[1]+1, bbox[2]:bbox[3]+1]
     if not is_categorized:
         if not vlm:
             raise ValueError("VLM must be provided for map visualization.")
@@ -84,14 +214,11 @@ def get_2Dmap(categories, map_data, vlm_type=None, vlm=None, bbox=None, is_categ
             text_feats = text_feats.cpu().numpy()
         else:
             raise ValueError(f"Unsupported VLM type: {vlm_type}")
-        map_feats = map_data.reshape((-1, map_data.shape[-1]))
-        scores_list = map_feats @ text_feats.T
-        predicts = np.argmax(scores_list, axis=1)
-
-        if bbox:
-            predicts = predicts.reshape((bbox[1]-bbox[0]+1, bbox[3]-bbox[2]+1))
-        else:
-            predicts = predicts.reshape(map_data.shape)
+        predicts, _ = compute_gridwise_category_map(
+            map_data,
+            text_feats,
+            valid_mask=valid_mask,
+        )
         return viz_map(predicts, categories, floor_mask = floor_mask, title=save_name, is_show=is_show, save_path=save_path, save_name=save_name)
     else:
         if bbox:
@@ -162,12 +289,35 @@ def get_2Dmap_ours(categories, map_data, vlm=None, bbox=None, use_avg_height=Fal
                 grid_2d[i,j] = candidate_val
         return viz_map(grid_2d, categories, floor_mask=floor_mask, title=save_name, is_show=is_show, save_path=save_path, save_name=save_name)
 
-def visualize_2Dmap_cat(vlm_type, vlm, categories, map_data, bbox=None, is_show=True, use_avg_height = False, save_path=None, save_name=None, floor_mask=True):
+def visualize_2Dmap_cat(
+    vlm_type,
+    vlm,
+    categories,
+    map_data,
+    bbox=None,
+    is_show=True,
+    use_avg_height=False,
+    save_path=None,
+    save_name=None,
+    floor_mask=True,
+    valid_mask=None,
+):
     # Function for visualize 2D map
     if vlm_type == "ours":
         map, categories = get_2Dmap_ours(categories=categories, map_data=map_data, vlm=vlm, bbox=bbox, is_show=is_show, use_avg_height=use_avg_height, save_path=save_path, save_name=save_name, floor_mask=floor_mask)
     else:
-        map, categories = get_2Dmap(categories=categories, map_data=map_data, vlm_type=vlm_type, vlm=vlm, bbox=bbox, is_show=is_show, save_path=save_path, save_name=save_name, floor_mask=floor_mask)
+        map, categories = get_2Dmap(
+            categories=categories,
+            map_data=map_data,
+            vlm_type=vlm_type,
+            vlm=vlm,
+            bbox=bbox,
+            is_show=is_show,
+            save_path=save_path,
+            save_name=save_name,
+            floor_mask=floor_mask,
+            valid_mask=valid_mask,
+        )
     return map, categories
 
 def visualize_2Dmap_categorized(vlm_type, categories, map_data, bbox=None, is_show=True, use_avg_height = False, save_path=None, save_name=None, floor_mask=True):
@@ -475,6 +625,8 @@ def visualize_instances(rgb, inst, map_data, bbox=None, is_show=True, save_path=
         plt.savefig(os.path.join(save_path, f"{save_name}.png"), bbox_inches='tight', pad_inches=0.1)
     if is_show:
         plt.show(block=False)
+    else:
+        plt.close()
                 
 
 def visualize_heatmap(vlm_type, vlm, target, rgb, map_data, heatmap_type="simscore", bbox=None, is_show=True, save_path=None, save_name=None, categories=None):
@@ -588,3 +740,5 @@ def visualize_heatmap_2d(rgb: np.ndarray, heatmap: np.ndarray, transparency: flo
         plt.savefig(os.path.join(save_path, f"{save_name}.png"), bbox_inches='tight', pad_inches=0.1)
     if is_show:
         plt.show(block=False)
+    else:
+        plt.close()

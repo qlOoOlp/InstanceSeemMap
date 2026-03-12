@@ -1,37 +1,96 @@
-data_path: "/home/vlmap_RCI/Data"
-data_type: "habitat_sim"
-dataset_type : "Replica" # "replica" 
-vlm: "seem" # "lseg" "seem" "ours"
-version: "test0909_lseg" #"test0811mh1" #"test0721_max3_mapmin10" #"b1209_ps50aft_s" # "lseg" "seem"
-scene_id: "office2" #00861-GLAQ4DNUx5U #00824-Dd4bFSTQ8gi #apartment_0_1 #2t7WUuJeko7_2
+common:
+  data_path: "/home/vlmap_RCI/Data"
+  data_type: "habitat_sim"
+  save_image: true
+  show_image: false
+  visualize:
+    # - "gt"
+    - "obstacles"
+    - "rgb"
+    - "2DMap"
+    # - "map"
+    # - "instance"
+    # - "instances_in_cat"
+    # - "heatmap"
+    # - "room"
 
-gt_version: "gt"
-visualize:
-  # - "gt"
-  - "obstacles"
-  - "rgb"
-  - "2Dmap"
-  # - "map"
-  # - "instance"
-  # - "instances_in_cat"
-  # - "heatmap"
-  # - "room"
-instances_to_visualize: #null # using for visualize_instance
-  - 2
+  # below options are only used by instance-wise maps (ours/floodfill/dbscan).
+  # lseg/seem always use 01buildFeatMap/obstacles_<version>.npy.
+  using_categorized_map: true
+  using_avg_height: true
+  using_postprocessed_obstacles: true
+  filtering_floor: false
 
-categories_to_visualize:  #using for visualize_instances_in_cat
-  - 'bed'
-  - 'floor'
-  - 'chair'
-  - "counter"
-  - "floor"
-  - "sofa"
-  - "ceiling"
-using_categorized_map: true
-using_avg_height: true
-using_postprocessed_obstacles: false
-heatmap_type: "simscore" # simscore / category # simscore is better than category
-heatmap_target: 
-  - "chair"
-save_image: true
-filtering_floor: false #!?????? 왜 필터링 되지 그러면
+  instances_to_visualize: []
+  categories_to_visualize: []
+  heatmap_type: "simscore"
+  heatmap_target: []
+
+  # Optional:
+  # output_root: "/home/hong_RCI/vlmap/outputs/viz_batch"
+  # If set, outputs are saved to:
+  # <output_root>/<vlm>/<dataset_type>/<scene_id>_<version>/
+
+runs:
+  - vlm: "lseg"
+    datasets:
+      - dataset_type: "Replica"
+        scenes:
+          - scene_id: "office2"
+            version: "longTimeNoSee_lseg"
+            gt_version: "longTimeNoSee_gt"
+      - dataset_type: "mp3d"
+        scenes:
+          - scene_id: "2t7WUuJeko7_2"
+            version: "longTimeNoSee_lseg"
+            gt_version: "longTimeNoSee_gt"
+      - dataset_type: "hm3dsem"
+        scenes:
+          - scene_id: "00829-QaLdnwvtxbs"
+            version: "longTimeNoSee_lseg"
+            gt_version: "longTimeNoSee_gt"
+
+  - vlm: "seem"
+    datasets:
+      - dataset_type: "Replica"
+        scenes:
+          - scene_id: "office2"
+            version: "longTimeNoSee_seem"
+            gt_version: "longTimeNoSee_gt"
+      - dataset_type: "mp3d"
+        scenes:
+          - scene_id: "2t7WUuJeko7_2"
+            version: "longTimeNoSee_seem"
+            gt_version: "longTimeNoSee_gt"
+      - dataset_type: "hm3dsem"
+        scenes:
+          - scene_id: "00829-QaLdnwvtxbs"
+            version: "longTimeNoSee_seem"
+            gt_version: "longTimeNoSee_gt"
+
+  - vlm: "ours"
+    datasets:
+      - dataset_type: "Replica"
+        scenes:
+          - scene_id: "office2"
+            version: "longTimeNoSee"
+            gt_version: "longTimeNoSee_gt"
+          - scene_id: "office2"
+            version: "longTimeNoSee2"
+            gt_version: "longTimeNoSee_gt"
+      - dataset_type: "mp3d"
+        scenes:
+          - scene_id: "2t7WUuJeko7_2"
+            version: "longTimeNoSee"
+            gt_version: "longTimeNoSee_gt"
+          - scene_id: "2t7WUuJeko7_2"
+            version: "longTimeNoSee2"
+            gt_version: "longTimeNoSee_gt"
+      - dataset_type: "hm3dsem"
+        scenes:
+          - scene_id: "00829-QaLdnwvtxbs"
+            version: "longTimeNoSee"
+            gt_version: "longTimeNoSee_gt"
+          - scene_id: "00829-QaLdnwvtxbs"
+            version: "longTimeNoSee2"
+            gt_version: "longTimeNoSee_gt"

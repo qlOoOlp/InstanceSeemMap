@@ -191,10 +191,26 @@ class DataManager4Real(DataManager):
 
 
 class DataManager4gt(DataManager):
-    def __init__(self, version:str, data_path:str, map_path:str, start_frame:int=0, end_frame:int=-1, skip_frames:int=1):
-        super().__init__(version, data_path, map_path, start_frame, end_frame)
+    def __init__(
+        self,
+        version: str,
+        data_path: str,
+        map_path: str,
+        start_frame: int = 0,
+        end_frame: int = -1,
+        skip_frames: int = 1,
+        pose_type: str = "quat",
+    ):
+        super().__init__(
+            version,
+            data_path,
+            map_path,
+            start_frame,
+            end_frame,
+            skip_frames=skip_frames,
+            pose_type=pose_type,
+        )
         self._semantic_path = self._data_path + '/semantic'
-        self._skip_frames = skip_frames
         self._load_data()
     def _load_data(self)->None:
         self.check_path(self._data_path, self._rgb_path, self._depth_path, self._pose_path, self._semantic_path)
@@ -241,7 +257,10 @@ class DataManager4gt(DataManager):
         semantic_dir = self._semanticlist[self._count]
         rgb = rgbLoader(rgb_dir)
         depth = depthLoader(depth_dir)
-        pose = poseLoader(pose_dir)
+        if self._pose_type == "mat":
+            pose = poseLoader_mat(pose_dir)
+        else:
+            pose = poseLoader(pose_dir)
         semantic = depthLoader(semantic_dir)
         return rgb, depth, pose, semantic
     

@@ -7,7 +7,7 @@ from ollama import ChatResponse
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 from map.utils.matterport3d_room_categories import mp3d_room
-from map.utils.hm3dsem_categories import hm3dsem_cat
+from map.utils.dataset_categories import resolve_dataset_categories
 import subprocess
 import time
 
@@ -23,10 +23,12 @@ class caption_extractor():
                                      'map', f"{config['scene_id']}_{config['version']}")
         self.room_cat = ["void"] + mp3d_room
         self.restart_interval = 5
-        if self.config["dataset_type"] == "hm3dsem":
-            self.categories = hm3dsem_cat
-        else:
-            raise ValueError(f"dataset_type {self.config['dataset_type']} not supported yet")
+        dataset_type_for_logic = self.config.get("dataset_type_key", self.config["dataset_type"])
+        self.dataset_type_key, self.categories, self.category_source = resolve_dataset_categories(dataset_type_for_logic)
+        print(
+            f"[captionextract] dataset_type={self.config['dataset_type']} (canonical={self.dataset_type_key}), "
+            f"categories={len(self.categories)} source={self.category_source}"
+        )
 
     def restart_ollama(self):
         print("Ollama 서버를 재시작합니다...")

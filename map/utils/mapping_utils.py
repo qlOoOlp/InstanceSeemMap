@@ -287,25 +287,65 @@ def get_new_pallete(num_cls):
     return pallete
 
 
+def _index_to_rgb(index: int):
+    lab = int(index)
+    r = 0
+    g = 0
+    b = 0
+    i = 0
+    # Match the legacy bit-mixing rule while keeping shifts valid.
+    while lab > 0 and i < 8:
+        r |= ((lab >> 0) & 1) << (7 - i)
+        g |= ((lab >> 1) & 1) << (7 - i)
+        b |= ((lab >> 2) & 1) << (7 - i)
+        i += 1
+        lab >>= 3
+    return r, g, b
+
+
 def get_new_mask_pallete(npimg, new_palette, out_label_flag=False, labels=None, ignore_ids_list=[]):
     """Get image color pallete for visualizing masks"""
-    # put colormap
-    out_img = Image.fromarray(npimg.squeeze().astype("uint8"))
-    out_img.putpalette(new_palette)
+    arr = npimg.squeeze()
+    palette_too_large = len(new_palette) > 768
+    has_large_index = bool(arr.size > 0 and np.max(arr) > 255)
 
+    color_cache = {}
+    if not palette_too_large and not has_large_index:
+        # PIL palette mode supports up to 256 colors.
+        out_img = Image.fromarray(arr.astype("uint8"), mode="P")
+        out_img.putpalette(new_palette)
+    else:
+        # Fallback path for large-category maps (e.g. hm3dsem with >256 classes).
+        rgb = np.zeros(arr.shape + (3,), dtype=np.uint8)
+        for index in np.unique(arr):
+            idx = int(index)
+            color = _index_to_rgb(idx)
+            color_cache[idx] = color
+            rgb[arr == index] = color
+        out_img = Image.fromarray(rgb, mode="RGB")
+
+    patches = []
     if out_label_flag:
         assert labels is not None
-        u_index = np.unique(npimg)
-        patches = []
+        u_index = np.unique(arr)
         for i, index in enumerate(u_index):
             if index in ignore_ids_list:
                 continue
-            label = labels[index]
-            cur_color = [
-                new_palette[index * 3] / 255.0,
-                new_palette[index * 3 + 1] / 255.0,
-                new_palette[index * 3 + 2] / 255.0,
-            ]
+            idx = int(index)
+            if 0 <= idx < len(labels):
+                label = labels[idx]
+            else:
+                label = f"id_{idx}"
+
+            if not palette_too_large and not has_large_index:
+                cur_color = [
+                    new_palette[idx * 3] / 255.0,
+                    new_palette[idx * 3 + 1] / 255.0,
+                    new_palette[idx * 3 + 2] / 255.0,
+                ]
+            else:
+                r, g, b = color_cache.get(idx, _index_to_rgb(idx))
+                cur_color = [r / 255.0, g / 255.0, b / 255.0]
             red_patch = mpatches.Patch(color=cur_color, label=label)
             patches.append(red_patch)
     return out_img, patches
@@ -805,29 +845,29 @@ def get_sim_cam_mat(h, w):
     return cam_mat
 
 
-def depth2pc4Real(depth, cam_mat, original_resolution, intr_mat=None, min_depth=0.1, max_depth=3):
+# def depth2pc4Real(depth, cam_mat, original_resolution, intr_mat=None, min_depth=0.1, max_depth=3):
 
-    h, w = depth.shape
-    target_resolution = (h, w)
-    # cam_mat = intr_mat
-    # if intr_mat is None:
-    #     cam_mat = get_sim_cam_mat4Real(cam_mat, original_resolution, target_resolution)
-    # cam_mat[:2, 2] = 0
-    cam_mat_inv = np.linalg.inv(cam_mat)
+#     h, w = depth.shape
+#     target_resolution = (h, w)
+#     # cam_mat = intr_mat
+#     # if intr_mat is None:
+#     #     cam_mat = get_sim_cam_mat4Real(cam_mat, original_resolution, target_resolution)
+#     # cam_mat[:2, 2] = 0
+#     cam_mat_inv = np.linalg.inv(cam_mat)
 
-    y, x = np.meshgrid(np.arange(h), np.arange(w), indexing="ij")
-    x = x.reshape((1, -1))[:, :] + 0.5
-    y = y.reshape((1, -1))[:, :] + 0.5
-    z = depth.reshape((1, -1))[:, :]
+#     y, x = np.meshgrid(np.arange(h), np.arange(w), indexing="ij")
+#     x = x.reshape((1, -1))[:, :] + 0.5
+#     y = y.reshape((1, -1))[:, :] + 0.5
+#     z = depth.reshape((1, -1))[:, :]
 
-    p_2d = np.vstack([x, y, np.ones_like(x)])
-    pc = cam_mat_inv @ p_2d
-    pc = pc * z
-    mask = pc[2, :] > min_depth
+#     p_2d = np.vstack([x, y, np.ones_like(x)])
+#     pc = cam_mat_inv @ p_2d
+#     pc = pc * z
+#     mask = pc[2, :] > min_depth
 
-    mask = np.logical_and(mask, pc[2, :] < max_depth)
-    # pc = pc[:, mask]
-    return pc, mask
+#     mask = np.logical_and(mask, pc[2, :] < max_depth)
+#     # pc = pc[:, mask]
+#     return pc, mask
 
 
 def get_sim_cam_mat4Real(cam_mat, original_resolution, target_resolution):

@@ -33,6 +33,8 @@ class SegmentationMetric():
             top_k_acc = []
             top_k_mpacc = []
             top_k_fwmpacc = []
+            valid_gt_ids = [int(cls_id) for cls_id in np.unique(target) if cls_id not in self.ignore_list]
+            num_valid_gt_classes = len(valid_gt_ids)
             for i in range(target.shape[0]):
                 for j in range(target.shape[1]):
                     if target[i][j] in self.ignore_list:
@@ -56,16 +58,14 @@ class SegmentationMetric():
 
                 mpacc = 0
                 fwmpacc = 0
-                for id in np.unique(target):
-                    if id in self.ignore_list:
-                        continue
+                for id in valid_gt_ids:
                     num_id = np.sum(target == id)
                     if num_id == 0:
                         raise ValueError("Wrong id") # Because only id in gt map is considered
                     correct_id = np.sum((auc_map <= i)&(auc_map>0)&(target == id))
                     mpacc+= correct_id / num_id
                     fwmpacc += correct_id
-                mpacc = mpacc / self.num_gt_classes if self.num_gt_classes != 0 else 0
+                mpacc = mpacc / num_valid_gt_classes if num_valid_gt_classes != 0 else 0
                 fwmpacc = fwmpacc / labeled if labeled != 0 else 0
                 top_k_mpacc.append(mpacc)
                 top_k_fwmpacc.append(fwmpacc)
@@ -85,6 +85,8 @@ class SegmentationMetric():
             top_k_acc = []
             top_k_mpacc = []
             top_k_fwmpacc = []
+            valid_gt_ids = [int(cls_id) for cls_id in np.unique(target) if cls_id not in self.ignore_list]
+            num_valid_gt_classes = len(valid_gt_ids)
             for i in range(target.shape[0]):
                 for j in range(target.shape[1]):
                     if target[i][j] in self.ignore_list:
@@ -108,16 +110,14 @@ class SegmentationMetric():
                 mpacc = 0
                 fwmpacc = 0
 
-                for id in np.unique(target):
-                    if id in self.ignore_list:
-                        continue
+                for id in valid_gt_ids:
                     num_id = np.sum(target == id)
                     if num_id == 0:
                         raise ValueError("Wrong id") # Because only id in gt map is considered
                     correct_id = np.sum((auc_map <= i)&(auc_map>0)&(target == id))
                     mpacc+= correct_id / num_id
                     fwmpacc += correct_id
-                mpacc = mpacc / self.num_gt_classes if self.num_gt_classes != 0 else 0
+                mpacc = mpacc / num_valid_gt_classes if num_valid_gt_classes != 0 else 0
                 fwmpacc = fwmpacc / labeled if labeled != 0 else 0
                 top_k_mpacc.append(mpacc)
                 top_k_fwmpacc.append(fwmpacc)
@@ -198,8 +198,9 @@ class SegmentationMetric():
         # 영역 크기가 0인 클래스는 계산에서 제외
         valid_mask = area_size > 0  # 유효한 클래스만 필터링
         for cls in self.ignore_list:
-            valid_mask[cls] = False  # 무시 리스트에 포함된 클래스도 제외
-            area_size[cls] = 0      # area_size도 0으로 설정
+            if 0 <= cls < self.num_classes:
+                valid_mask[cls] = False  # 무시 리스트에 포함된 클래스도 제외
+                area_size[cls] = 0      # area_size도 0으로 설정
 
         # class_iou_list = np.zeros(self.num_classes, dtype=np.float32)  # 초기화
         class_iou_list = area_inter[valid_mask] / area_union[valid_mask]  # 유효한 클래스에 대해서만 계산

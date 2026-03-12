@@ -58,6 +58,8 @@ class ImageAlignedModel(VLFM):
 class RegionAlignedModel(VLFM):
     def __init__(self, name, **kwargs) -> None:
         super().__init__(name, **kwargs)
+        req_device = kwargs.get("device", "cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device(req_device)
         if name == "seem":
             from map.seem.xdecoder_seem.model import BaseModel
             from map.seem.xdecoder_seem.xdecoder import build_model
@@ -67,7 +69,7 @@ class RegionAlignedModel(VLFM):
             opt = init_distributed(opt)
             self.model = BaseModel(opt, build_model(opt)).from_pretrained(
                 self.meta["checkpoint"]
-            ).eval().cuda()
+            ).eval().to(self.device)
             self.model.init_vocabulary()
         else:
             raise NotImplementedError
@@ -90,7 +92,7 @@ class RegionAlignedModel(VLFM):
         # NOTE: normalize image inside model
         images = torch.tensor(
             np.asarray(images, dtype=np.float32)
-        ).float().permute(0, 3, 1, 2).cuda()
+        ).float().permute(0, 3, 1, 2).to(self.device)
         return images
 
     @torch.inference_mode()

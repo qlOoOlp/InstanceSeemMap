@@ -1634,16 +1634,170 @@ hm3dsem_cat = [
 
 
 
+# def build_obstacle_filter():
+#     # 1) 강제제외: 천장/부착물, 문/커튼/블라인드 등 (window 관련 제거됨 → 창은 포함 방향)
+#     exclude_patterns = [
+#         r'ceiling', r'chandelier',
+#         r'ceiling\s*(fan|lamp|light|fixture|rail|panel|molding|border|ladder|support|under|arch|dome|window|vent|duct|pipe|door)',
+
+#         r'\bdoor\b',
+#         r'sliding\s*door', r'garage\s*door', r'attic\s*door',
+#         r'doorway', r'door/window', r'door\s*window',
+#         r'door\s*(frame|post|handle|hinge|knob|stopper|screen|step)',
+#         r'\bgate\b',
+
+#         r'shutter', r'shade', r'blind',
+#         r'curtain(?!\s*wall)', r'curtain\s*(rod|rail|bar|box|hanger|valence)',
+#     ]
+
+#     # 2) 포함 힌트(고정·대형·중량) + window 포함
+#     include_hints = [
+#         # 구조물
+#         r'wall(?!\s*(clock|hanger|panel|board|soap|tv|toilet\s*paper))',
+#         r'wall\s*(panel|board|/outside|beam|cabinet)', r'compound\s*wall', r'paneling',
+#         r'pillar|column|parapet|arch',
+#         r'railing|banister|balustrade',
+#         r'stair(case)?|stair\s*step|stairs\s*railing|staircase',
+#         r'fence',
+#         r'chimney|hearth|mantel',
+#         r'partition',
+
+#         # 창(장애물 포함)
+#         r'\bwindow\b', r'window\s*glass', r'window\s*/outside', r'window\s*seat',
+
+#         # 대형 가구/수납
+#         r'\bbed\b|sofa|couch|armchair|bench|stool|rocking\s*chair|bean\s*bag\s*chair|beanbag',
+#         r'(\btable\b(?!\s*cloth))|\bdesk\b|coffee\s*table|dining\s*table|side\s*table|end\s*table',
+#         r'wardrobe|closet(?!\s*door)|dresser|chest(\s*of\s*drawers)?|nightstand|sideboard',
+#         r'bookshelf|shelving|\bshelf\b(?!\s*with)',   # "shelf with ..."은 후제외에서 걸러질 수 있음
+#         r'cabinet(?!\s*door)|cupboard|file\s*cabinet|bar\s*cabinet|storage\s*cabinet|wall\s*cabinet',
+#         r'locker|tv\s*stand|media\s*console|end\s*table',
+
+#         # 설비/가전/위생기기
+#         r'refrigerator|fridge|washing\s*machine|laundry\s*machine|dryer|dishwasher',
+#         r'oven(?!\s*and\s*stove)|stove|range\s*hood',
+#         r'boiler|furnace|heater|radiator|water\s*heater|air\s*conditioner',
+#         r'fireplace|sauna|jacuzzi',
+#         r'\bbath\s*tub\b|bathtub(?!\s*utensil)|\bbath\b(?!\s*(mat|towel|robe|hanger|shelf|utensil|dial|cosmetics|carpet|floor))',
+#         r'\btoilet\b(?!\s*(paper|brush|seat|cleaner|paper\s*dispenser))',
+#         r'washbasin|sink(?!\s*(pipe|tap|table|utensil))|vessel\s*sink|wash\s*cabinet|sink\s*cabinet|bathroom\s*cabinet',
+#         r'shower\s*(cabin|stall|cockpit|wall)(?!\s*(curtain|door|rod|bar|shelf))',
+
+#         # 카운터/작업대
+#         r'kitchen\s*counter|counter\s*top|countertop|worktop|kitchen\s*island|counter\s*desk',
+#     ]
+
+#     # 3) 소형/이동/잡동사니(후제외) — 필요시 확장
+#     small_loose_exclude = [
+#         r'window\s*(curtain|shade|shutter)',  # 창 커버류는 제외
+#         r'cup|mug|plate|bowl|flatware|cutlery|napkin|dinnerware|utensil',
+#         r'paper|magazine|newspaper|document|notes?|folder|file(?!\s*cabinet)|binders?|book(s)?(?!\s*(shelf|case|display))',
+#         r'cloth|towel|blanket|sheet(s)?|pillow(?!\s*seat)',
+#         r'bag|backpack|purse|wallet|handbag',
+#         r'candle(?!\s*holder|stand)|soap(?!\s*dispenser)|bottle(?!\s*dispenser)|jar|can(\s|$)|cosmetic(s)?',
+#         r'plant(?!\s*(ornament|stand|bed))|flower(?!\s*(pot|stand|bed))',
+#         r'toy(?!\s*box)|doll|stuffed\s*animal|plush',
+#         r'photo|picture|painting|poster|art(?!\s*frame)',
+#         r'laptop|keyboard(?!\s*piano)|mouse(?!\s*pad)|tablet|phone|remote\s*control|monitor(?!\s*stand?)',
+#         r'bin|trash\s*can|trash\s*bag|bucket|basket(?!\s*of\s*(towels|something|books|clothes))',
+#         r'frame(?!\s*|.*tv|.*display)|shampoo|soap\s*bottle|toilet\s*paper|paper\s*towel|detergent|cosmetics?',
+#         r'fan(?!\s*coil)|clock(?!\s*grandfather)',
+#         r'lamp(?!\s*stand|table)|light\s*fixture',
+#         r'mat(?!\s*h)', r'rug|carpet(?!\s*roll)',
+#         r'poster', r'calendar',
+#     ]
+
+#     # 4) 강제 포함(화이트리스트) — 패턴 누락 보완
+#     whitelist_exact = {
+#         'bookshelf', 'shelving', 'storage shelving', 'storage cabinet', 'sink cabinet',
+#         'kitchen island', 'kitchen counter', 'countertop', 'worktop',
+#         'tv stand', 'media console',
+#         'chest of drawers', 'dresser', 'wardrobe', 'closet shelving', 'closet storage area',
+#         'fireplace', 'furnace', 'boiler', 'radiator', 'water heater',
+#         'sauna', 'jacuzzi',
+#         'vessel sink', 'wash cabinet', 'bathroom cabinet',
+#         'shower cabin', 'shower stall', 'shower cockpit', 'shower wall',
+#         'compound wall', 'wall panel', 'paneling', 'wall board',
+#         'banister', 'balustrade', 'parapet', 'hearth', 'mantel',
+#         'locker', 'file cabinet', 'sideboard',
+#         'end table', 'side table', 'coffee table', 'dining table',
+#         'armchair', 'rocking chair', 'beanbag chair', 'bean bag chair',
+#         # 창 관련
+#         'window', 'window glass', 'window /outside', 'window seat',
+#     }
+
+#     # 5) 강제 제외(블랙리스트) — 소모품/소형이지만 패턴에 걸릴 수 있는 것
+#     blacklist_exact = {
+#         'toilet paper', 'soap', 'bottle', 'bottles', 'paper towel', 'paper towels',
+#         'plant', 'flower', 'poster', 'calendar', 'mat', 'rug', 'carpet',
+#         'monitor', 'laptop', 'mouse', 'phone',
+#         'window curtain', 'window shade', 'window shutter',
+#     }
+
+#     rx_ex = [re.compile(p, flags=re.I) for p in exclude_patterns]
+#     rx_in = [re.compile(p, flags=re.I) for p in include_hints]
+#     rx_sm = [re.compile(p, flags=re.I) for p in small_loose_exclude]
+
+#     def is_excluded(name: str) -> bool:
+#         s = name.lower().strip()
+#         if s in (x.lower() for x in blacklist_exact):
+#             return True
+#         return any(r.search(s) for r in rx_ex)
+
+#     def is_included(name: str) -> bool:
+#         s = name.lower().strip()
+#         if s in (x.lower() for x in whitelist_exact):
+#             return True
+#         return any(r.search(s) for r in rx_in)
+
+#     def is_small_loose(name: str) -> bool:
+#         s = name.lower().strip()
+#         return any(r.search(s) for r in rx_sm)
+
+#     def pick_obstacle_categories(categories: List[str]) -> List[str]:
+#         result = []
+#         for c in categories:
+#             if not c:
+#                 continue
+#             s = c.strip()
+#             if not s or s.lower() == 'void':
+#                 continue
+#             # 1) 강제제외
+#             if is_excluded(s):
+#                 continue
+#             # 2) 포함힌트 충족 + 3) 소형/이동/잡동사니 후제외
+#             if is_included(s) and not is_small_loose(s):
+#                 result.append(s)
+
+#         # 중복 제거(원래 순서 유지)
+#         seen = set()
+#         dedup = []
+#         for x in result:
+#             if x not in seen:
+#                 seen.add(x)
+#                 dedup.append(x)
+#         return dedup
+
+#     return pick_obstacle_categories
+
+
+import re
+from typing import List
+
 def build_obstacle_filter():
     # 1) 강제제외: 천장/부착물, 문/커튼/블라인드 등 (window 관련 제거됨 → 창은 포함 방향)
     exclude_patterns = [
         r'ceiling', r'chandelier',
         r'ceiling\s*(fan|lamp|light|fixture|rail|panel|molding|border|ladder|support|under|arch|dome|window|vent|duct|pipe|door)',
 
-        r'\bdoor\b',
+        # ---- door/문 관련: 다양한 변형 추가 ----
+        r'\bdoor\b', r'\bdoors\b',
         r'sliding\s*door', r'garage\s*door', r'attic\s*door',
         r'doorway', r'door/window', r'door\s*window',
-        r'door\s*(frame|post|handle|hinge|knob|stopper|screen|step)',
+        r'door\s*(frame|post|handle|hinge|knob|stopper|screen|step|panel|jamb|casing|trim)',
+        r'closet\s*door', r'cabinet\s*door', r'wardrobe\s*door',
+        r'shower\s*door', r'glass\s*door', r'french\s*door', r'double\s*door', r'hinged\s*door',
+        r'patio\s*door', r'screen\s*door', r'storm\s*door',
         r'\bgate\b',
 
         r'shutter', r'shade', r'blind',
@@ -1669,7 +1823,7 @@ def build_obstacle_filter():
         r'\bbed\b|sofa|couch|armchair|bench|stool|rocking\s*chair|bean\s*bag\s*chair|beanbag',
         r'(\btable\b(?!\s*cloth))|\bdesk\b|coffee\s*table|dining\s*table|side\s*table|end\s*table',
         r'wardrobe|closet(?!\s*door)|dresser|chest(\s*of\s*drawers)?|nightstand|sideboard',
-        r'bookshelf|shelving|\bshelf\b(?!\s*with)',   # "shelf with ..."은 후제외에서 걸러질 수 있음
+        r'bookshelf|shelving|\bshelf\b(?!\s*with)',
         r'cabinet(?!\s*door)|cupboard|file\s*cabinet|bar\s*cabinet|storage\s*cabinet|wall\s*cabinet',
         r'locker|tv\s*stand|media\s*console|end\s*table',
 
@@ -1687,7 +1841,7 @@ def build_obstacle_filter():
         r'kitchen\s*counter|counter\s*top|countertop|worktop|kitchen\s*island|counter\s*desk',
     ]
 
-    # 3) 소형/이동/잡동사니(후제외) — 필요시 확장
+    # 3) 소형/이동/잡동사니(후제외)
     small_loose_exclude = [
         r'window\s*(curtain|shade|shutter)',  # 창 커버류는 제외
         r'cup|mug|plate|bowl|flatware|cutlery|napkin|dinnerware|utensil',
@@ -1707,7 +1861,7 @@ def build_obstacle_filter():
         r'poster', r'calendar',
     ]
 
-    # 4) 강제 포함(화이트리스트) — 패턴 누락 보완
+    # 4) 강제 포함(화이트리스트)
     whitelist_exact = {
         'bookshelf', 'shelving', 'storage shelving', 'storage cabinet', 'sink cabinet',
         'kitchen island', 'kitchen counter', 'countertop', 'worktop',
@@ -1726,21 +1880,30 @@ def build_obstacle_filter():
         'window', 'window glass', 'window /outside', 'window seat',
     }
 
-    # 5) 강제 제외(블랙리스트) — 소모품/소형이지만 패턴에 걸릴 수 있는 것
+    # 5) 강제 제외(블랙리스트)
     blacklist_exact = {
         'toilet paper', 'soap', 'bottle', 'bottles', 'paper towel', 'paper towels',
         'plant', 'flower', 'poster', 'calendar', 'mat', 'rug', 'carpet',
         'monitor', 'laptop', 'mouse', 'phone',
         'window curtain', 'window shade', 'window shutter',
+        # 문 관련 단어가 정확히 들어오면 무조건 제외
+        'door', 'doors', 'doorway',
     }
 
     rx_ex = [re.compile(p, flags=re.I) for p in exclude_patterns]
     rx_in = [re.compile(p, flags=re.I) for p in include_hints]
     rx_sm = [re.compile(p, flags=re.I) for p in small_loose_exclude]
 
+    # ---- door 최종 가드: indoor/outdoor는 허용, 그 외 door* 전부 제외 ----
+    _door_guard = re.compile(r'(^|[^a-z])(door\w*)', flags=re.I)
+    _inout_guard = re.compile(r'(indoor|outdoor)', flags=re.I)
+
     def is_excluded(name: str) -> bool:
         s = name.lower().strip()
         if s in (x.lower() for x in blacklist_exact):
+            return True
+        # 최종 가드: 'indoor/outdoor' 제외하고 door*는 모두 제외
+        if _door_guard.search(s) and not _inout_guard.search(s):
             return True
         return any(r.search(s) for r in rx_ex)
 

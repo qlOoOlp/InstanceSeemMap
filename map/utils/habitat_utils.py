@@ -16,9 +16,6 @@ def make_cfg(settings: Dict) -> habitat_sim.Configuration:
     sim_cfg.enable_physics = settings["enable_physics"]
     sim_cfg.scene_dataset_config_file = settings["scene_dataset_config_file"]
 
-
-
-
     sensor_spec = []
     back_rgb_sensor_spec = make_sensor_spec(
         "back_color_sensor",

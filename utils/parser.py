@@ -2,7 +2,13 @@ import os, sys
 import json
 import argparse
 import torch
-from map.utils.matterport3d_categories import mp3dcat
+from map.utils.dataset_categories import normalize_dataset_type
+
+
+def _attach_dataset_type_key(args):
+    if hasattr(args, "dataset_type"):
+        args.dataset_type_key = normalize_dataset_type(getattr(args, "dataset_type"))
+    return args
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -22,6 +28,12 @@ def parse_args():
     now_root = os.path.join(now_root, "Data")
     parser.add_argument("--root-path", default = "/home/vlmap_RCI/Data/", type=str,
                         help="Root path to use")
+    parser.add_argument(
+        "--dataset-options-path",
+        type=str,
+        default="config/dataset_options.yaml",
+        help="Dataset options YAML path (default: config/dataset_options.yaml)",
+    )
     
 
     # map scale
@@ -40,8 +52,8 @@ def parse_args():
     parser.add_argument("--start-frame", type=int, default=0,)
     parser.add_argument("--end-frame", type=int, default=-1)
     parser.add_argument("--skip-frames", type=int, default=1)
-    parser.add_argument('--no-rot-map', action='store_false',
-                        help='Do not rotate the result map')
+    parser.add_argument('--rot-map', action='store_true',
+                        help='Rotate the result map before saving (default: disabled)')
 
     # args = parser.parse_args()
 
@@ -57,13 +69,16 @@ def parse_args():
     else:
         parser.add_argument("--pose-type", type=str, default="mat",
                             choices=["mat","quat"], help="Type of position to use (Default: mat)")
+    # Explicit switch for mat pose rectification in seemmap_bbox; default keeps legacy behavior.
+    parser.add_argument("--use-mat-rectification", action="store_true",
+                        help="Apply rectification matrix to mat pose rotation in map building")
     if args.vlm == "seem":
         parser.add_argument("--feat-dim", type=int, default=512,
                             help="Dimension of the SEEM feature vector (Default: 512)")
         parser.add_argument("--threshold-confidence", type=float, default=0.9,
                             help="Threshold of confidence score for SEEM (Default: 0.5)")
         parser.add_argument("--seem-type", type=str, default="base",
-                            choices=["base","obstacle","tracking","bbox","dbscan","floodfill","bbox4hovsg", "bbox4hm3d", "bbox4hm3d22"],
+                            choices=["base","obstacle","tracking","bbox","bbox2","dbscan","floodfill","bbox4hovsg", "bbox4hm3d"],
                             help="Type of SEEM to use (Default: base)")
         parser.add_argument("--downsampling-ratio",type=float, default=1,
                             help="Downsampling ratio for SEEM input RGB image (Default: 1)")
@@ -97,6 +112,10 @@ def parse_args():
                                 help="Maximum height of the instance [m] (Default: 0.5)")
             parser.add_argument("--not-using-size", action="store_false",
                                 help="Use size information for SEEM feature")
+            parser.add_argument("--enable-perf-log", action="store_true",
+                                help="Enable per-section timing logs in seemmap_bbox")
+            parser.add_argument("--perf-log-every", type=int, default=0,
+                                help="Print rolling perf average every N frames (0 disables rolling log)")
     elif args.vlm == "lseg":
         parser.add_argument('--lseg-ckpt', type=str, default=os.path.join(os.getcwd(),"map/lseg/ckpt/demo_e200.ckpt"))
         parser.add_argument('--crop-size', type=int, default=480)
@@ -114,6 +133,12 @@ def parse_args():
     
 
     args = parser.parse_args()
+    # New canonical key: rotate only when explicitly requested.
+    # Keep legacy key for existing map classes until all are migrated.
+    if not hasattr(args, "rot_map"):
+        args.rot_map = False
+    args.no_rot_map = bool(args.rot_map)
+    args = _attach_dataset_type_key(args)
     print(args)
     if args.data_type=='habitat_sim':
         save_args(args)
@@ -128,7 +153,7 @@ def save_args(args):
         data_path = os.path.join(args.root_path, args.data_type)
     args.img_save_dir = os.path.join(data_path, args.scene_id)
     if not os.path.exists(args.img_save_dir):
-        FileNotFoundError(f"Invalid scene ID: {args.scene_id}")
+        raise FileNotFoundError(f"Invalid scene ID: {args.scene_id}")
     param_save_dir = os.path.join(args.img_save_dir, 'map')
     param_save_dir = os.path.join(param_save_dir, f'{args.scene_id}_{args.version}','01buildFeatMap')
     print(param_save_dir)
@@ -176,7 +201,7 @@ def parse_args_indexing_map():
     #                     help="Indexing method to use (Default: height)")
     # parser.add_argument("--seem-instance-method", type=str,default="floodfill",choices=["dbscan","floodfill"],
     #                     help="Instance divide method to use for SEEM (Default: floodfill)")
-    # parser.add_argument("--query", nargs="+", type=str, default= mp3dcat,
+    # parser.add_argument("--query", nargs="+", type=str,
     #                     help="A list of items (space-separated)")
     # parser.add_argument("--threshold-semSim", type=float, default=0.99,
     #                     help="Threshold of semantic similarity for SEEM feature (Default: 0.85)")
@@ -186,6 +211,7 @@ def parse_args_indexing_map():
     parser.add_argument("--root-path", default = "/home/vlmap_RCI/Data/", type=str,
                         help="Root path to use")
     args = parser.parse_args()
+    args = _attach_dataset_type_key(args)
     print(args)
     return args
 
@@ -217,6 +243,7 @@ def parse_args_roomseg():
     parser.add_argument("--root-path", default = "/home/vlmap_RCI/Data/", type=str,
                         help="Root path to use")
     args = parser.parse_args()
+    args = _attach_dataset_type_key(args)
     print(args)
     return args
 
@@ -245,6 +272,7 @@ def parse_args_roomcls():
     parser.add_argument("--root-path", default = "/home/vlmap_RCI/Data/", type=str,
                         help="Root path to use")
     args = parser.parse_args()
+    args = _attach_dataset_type_key(args)
     print(args)
     return args
 
@@ -259,7 +287,7 @@ def parse_args_extract_captions():
     parser.add_argument("--data-type", type=str, default="habitat_sim",
                         choices=["habitat_sim", "rtabmap"], help="Select data type to use (Default: habitat_sim)")
     parser.add_argument("--dataset-type", type=str,default="mp3d",
-                        choices=["mp3d","replica","scannet", "hm3dsem"],help="Dataset type to use (Default: mp3d)")
+                        choices=["mp3d","replica","scannet", "hm3dsem", "Replica"],help="Dataset type to use (Default: mp3d)")
     parser.add_argument("--scene-id", type=str, default="2t7WUuJeko7_2",
                         help="Scene name to use (Default: 2t7WUuJeko7_2)")
     parser.add_argument("--version", type=str, default="seem",#"room_seg1_floor_prior",
@@ -272,5 +300,6 @@ def parse_args_extract_captions():
     parser.add_argument("--root-path", default = "/home/vlmap_RCI/Data/", type=str,
                         help="Root path to use")
     args = parser.parse_args()
+    args = _attach_dataset_type_key(args)
     print(args)
     return args

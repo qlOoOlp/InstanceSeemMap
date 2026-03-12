@@ -7,8 +7,7 @@ import tqdm
 import torch
 import clip
 
-from map.utils.matterport3d_categories import mp3dcat
-from map.utils.replica_categories import replica_cat
+from map.utils.dataset_categories import normalize_dataset_type, resolve_dataset_categories
 from map.utils.mapping_utils import load_map
 from map.seem.base_model import build_vl_model
 from map.utils.mapping_utils import get_new_mask_pallete, get_new_pallete
@@ -29,14 +28,58 @@ class evaluation():
         self.version = config["version"]
         self.gt_version = config["gt_version"]
         self.bool_visualize = config["visualize"]
-        if config["dataset_type"] == "mp3d":
-            self.ignore_index = [0,2,17,39,40,-1]
-        elif config["dataset_type"] == "replica":
-            self.ignore_index = [0,40]#,31,102]#[0,31,37,40,93,94,95,97,102] #[0,40,31,102]
+        dataset_type_for_logic = config.get("dataset_type_key", config["dataset_type"])
+        self.dataset_type_key = normalize_dataset_type(dataset_type_for_logic)
         self.load_vlm()
         self.load_cat()
+        self._setup_ignore_index()
         self.set_path()
 
+    def _setup_ignore_index(self):
+        if self.dataset_type_key == "mp3d":
+            base_ignore = [0, 2, 17, 39, 40]
+        elif self.dataset_type_key in ["replica", "hm3dsem"]:
+            base_ignore = [0, 40]
+        else:
+            raise ValueError(f"dataset_type {self.config['dataset_type']} not supported")
+
+        self.unknown_index = len(self.categories) - 1
+        ignore_values = set(base_ignore + [self.unknown_index])
+        self.ignore_index = sorted([idx for idx in ignore_values if 0 <= idx < len(self.categories)])
+
+    @staticmethod
+    def _bbox_from_value(obstacles, value):
+        x_indices, y_indices = np.where(obstacles == value)
+        if x_indices.size == 0:
+            return None
+        return int(np.min(x_indices)), int(np.max(x_indices)), int(np.min(y_indices)), int(np.max(y_indices))
+
+    def _compute_crop_bounds(self, obstacles, scene_id):
+        bbox_one = self._bbox_from_value(obstacles, 1)
+        bbox_zero = self._bbox_from_value(obstacles, 0)
+
+        if bbox_one is None and bbox_zero is None:
+            h, w = obstacles.shape[:2]
+            print(f"[evaluation][{scene_id}] warning: obstacles map has no 0/1 values; using full map bounds")
+            return 0, h - 1, 0, w - 1
+        if bbox_one is None:
+            return bbox_zero
+        if bbox_one[0] == 0 and bbox_one[2] == 0 and bbox_zero is not None:
+            return bbox_zero
+        return bbox_one
+
+    def _sanitize_gt_labels(self, gt, scene_id):
+        gt = np.asarray(gt).astype(np.int32)
+        invalid_mask = (gt < 0) | (gt >= len(self.categories))
+        invalid_count = int(np.sum(invalid_mask))
+        if invalid_count > 0:
+            print(
+                f"[evaluation][{scene_id}] remapped {invalid_count} invalid GT labels "
+                f"to unknown index {self.unknown_index}"
+            )
+            gt = gt.copy()
+            gt[invalid_mask] = self.unknown_index
+        return gt
 
     def set_path(self):
         self.gt_paths = []
@@ -55,13 +98,12 @@ class evaluation():
         print(f"Loaded paths for {len(self.scenes)} scenes")
 
     def load_cat(self):
-        if self.config["dataset_type"]=="mp3d":
-            self.categories = mp3dcat
-        elif self.config["dataset_type"]=="replica":
-            self.categories = replica_cat#[replica_cat[i] for i in sorted(replica_cat.keys())]
-        else:
-            raise ValueError(f"dataset_type {self.config['dataset_type']} not supported")
-        print(f"Loaded categories: {self.config['dataset_type']} - {len(self.categories)} classes")
+        dataset_type_for_logic = self.config.get("dataset_type_key", self.config["dataset_type"])
+        self.dataset_type_key, self.categories, self.category_source = resolve_dataset_categories(dataset_type_for_logic)
+        print(
+            f"[evaluation] dataset_type={self.config['dataset_type']} (canonical={self.dataset_type_key}) "
+            f"categories={len(self.categories)} source={self.category_source}"
+        )
 
     def evaluate(self):
         result_data = []
@@ -73,21 +115,7 @@ class evaluation():
             color = load_map(color_path)
             # if self.vlm == "ours":
             print(f"Size of gt: {gt.shape} \nSize of obstacles: {obstacles.shape}\nSize of color: {color.shape}\nSize of grid: {load_map(grid_path).shape}")
-            x_indices, y_indices = np.where(obstacles == 1)
-            # else:
-            #     x_indices, y_indices = np.where(obstacles == 0)
-            xmin = np.min(x_indices)
-            xmax = np.max(x_indices)
-            ymin = np.min(y_indices)
-            ymax = np.max(y_indices)
-            if xmin == 0 and ymin ==0 :
-                x_indices, y_indices = np.where(obstacles == 0)
-                xmin = np.min(x_indices)
-                xmax = np.max(x_indices)
-                ymin = np.min(y_indices)
-                ymax = np.max(y_indices)
-                # if xmin == 0 and ymin == 0 :
-                #     raise ValueError("No valid area in the map")
+            xmin, xmax, ymin, ymax = self._compute_crop_bounds(obstacles, scene_id)
             print(xmin, ymin, xmax, ymax)
             if self.bool_visualize:
                 obstacles_pil = Image.fromarray(obstacles[xmin:xmax+1, ymin:ymax+1])
@@ -99,8 +127,7 @@ class evaluation():
                 plt.imshow(color_pil, cmap="gray")
                 plt.show(block=False)
             gt = gt[xmin:xmax+1, ymin:ymax+1]
-            # if self.config["dataset_type"] == "mp3d":
-            gt[gt==-1] = len(self.categories)-1
+            gt = self._sanitize_gt_labels(gt, scene_id)
             grid = load_map(grid_path)
             if self.vlm != "floodfill" and self.vlm != "dbscan":
                 grid = grid[xmin:xmax+1, ymin:ymax+1]

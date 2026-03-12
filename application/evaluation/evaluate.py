@@ -5,6 +5,9 @@ from utils.utils import load_config
 from .metrics.evaluation import evaluation
 
 def append_results_to_json(output_path, data):
+    output_dir = os.path.dirname(output_path)
+    if output_dir and not os.path.exists(output_dir):
+        os.makedirs(output_dir, exist_ok=True)
     with open(output_path, 'w') as f:
         json.dump([data], f, indent=4)
 

@@ -5,23 +5,21 @@ import os
 import clip
 from sklearn.cluster import DBSCAN
 
-from map.utils.matterport3d_categories import mp3dcat
-from map.utils.replica_categories import replica_cat
-from map.utils.hm3dsem_categories import hm3dsem_cat, build_obstacle_filter
+from map.utils.dataset_categories import resolve_dataset_semantics
 
 from map.utils.clip_utils import get_text_feats
 from map.seem.base_model import build_vl_model
 from map.mapbuilder.utils.datamanager import DataManager, DataManager4Real, DataLoader
 from map.mapbuilder.map.lsegmap import LsegMap
 from map.mapbuilder.map.seemmap import SeemMap
-from map.mapbuilder.map.seemmap_tracking import SeemMap_tracking
+# from map.mapbuilder.map.legacy.seemmap_tracking import SeemMap_tracking
 from map.mapbuilder.map.seemmap_bbox import SeemMap_bbox
-from map.mapbuilder.map.seemmap_dbscan import SeemMap_dbscan
-from map.mapbuilder.map.seemmap_floodfill import SeemMap_floodfill
+from map.mapbuilder.map.seemmap_bbox2 import SeemMap_bbox2
+# from map.mapbuilder.map.legacy.seemmap_dbscan import SeemMap_dbscan
+# from map.mapbuilder.map.legacy.seemmap_floodfill import SeemMap_floodfill
 from map.mapbuilder.map.obstaclemap import ObstacleMap
-from map.mapbuilder.map.seemmap_bbox4hovsg import SeemMap_bbox4hovsg
-from map.mapbuilder.map.seemmap_bbox4hm3d import SeemMap_bbox4hm3d
-from map.mapbuilder.map.seemmap_bbox4hm3d22 import SeemMap_bbox4hm3d22
+# from map.mapbuilder.map.legacy.seemmap_bbox4hovsg import SeemMap_bbox4hovsg
+# from map.mapbuilder.map.legacy.seemmap_bbox4hm3d import SeemMap_bbox4hm3d
 from map.mapbuilder.map.gtmap import gtMap
 from PIL import Image
 import matplotlib.pyplot as plt
@@ -39,13 +37,13 @@ class MapBuilder():
             self.map = LsegMap(self.conf)
         elif self.vlm == "seem":
             if self.conf["seem_type"]=="base": self.map = SeemMap(self.conf)
-            elif self.conf["seem_type"]=="tracking" : self.map = SeemMap_tracking(self.conf)
+            # elif self.conf["seem_type"]=="tracking" : self.map = SeemMap_tracking(self.conf)
             elif self.conf["seem_type"]=="bbox" : self.map = SeemMap_bbox(self.conf)
-            elif self.conf["seem_type"]=="bbox4hovsg": self.map = SeemMap_bbox4hovsg(self.conf)
-            elif self.conf["seem_type"]=="bbox4hm3d": self.map = SeemMap_bbox4hm3d(self.conf)
-            elif self.conf["seem_type"]=="bbox4hm3d22": self.map = SeemMap_bbox4hm3d22(self.conf)
-            elif self.conf["seem_type"]=="dbscan" : self.map = SeemMap_dbscan(self.conf)
-            elif self.conf["seem_type"]=="floodfill" : self.map = SeemMap_floodfill(self.conf)
+            elif self.conf["seem_type"]=="bbox2" : self.map = SeemMap_bbox2(self.conf)
+            # elif self.conf["seem_type"]=="bbox4hovsg": self.map = SeemMap_bbox4hovsg(self.conf)
+            # elif self.conf["seem_type"]=="bbox4hm3d": self.map = SeemMap_bbox4hm3d(self.conf)
+            # elif self.conf["seem_type"]=="dbscan" : self.map = SeemMap_dbscan(self.conf)
+            # elif self.conf["seem_type"]=="floodfill" : self.map = SeemMap_floodfill(self.conf)
             elif self.conf["seem_type"]=="obstacle": self.map = ObstacleMap(self.conf)
     def buildmap(self):
         print("#"*100)
@@ -62,13 +60,24 @@ class CategorizedMapBuilder():
     def __init__(self, conf:DictConfig):
         self.conf = conf
         self.dataloader = DataLoader(self.conf)
+        dataset_type_for_logic = self.conf.get("dataset_type_key", self.conf["dataset_type"])
+        (
+            self.dataset_type_key,
+            self.categories,
+            self.category_source,
+            self.obstacles,
+            self.obstacle_source,
+        ) = resolve_dataset_semantics(
+            dataset_type_for_logic,
+            default_obstacles=self.conf.get("obstacle_items", []),
+            use_hm3d_obstacle_filter=True,
+        )
         x_indices, y_indices = np.where(self.dataloader.obstacle_map == 0)
         self.xmin, self.xmax, self.ymin, self.ymax = np.min(x_indices), np.max(x_indices), np.min(y_indices), np.max(y_indices)
         self.others = self.conf["room_items"]
         if self.xmin == 0 and self.ymin == 0:
             x_indices, y_indices = np.where(self.dataloader.obstacle_map == 1)
             self.xmin, self.xmax, self.ymin, self.ymax = np.min(x_indices), np.max(x_indices), np.min(y_indices), np.max(y_indices)
-        self.obstacles = self.conf['obstacle_items']
         self.max_obs_height = self.conf['max_obs_height']
 
     def processing(self):
@@ -82,17 +91,13 @@ class CategorizedMapBuilder():
             for j in range(self.dataloader.grid_map.shape[1]): 
                 if 1 in self.dataloader.grid_map[i,j]:
                     self.wall_mask[i,j] = 1
-        self.model = build_vl_model("seem", input_size=360)
-        if self.conf["dataset_type"]== "mp3d":
-            self.categories = mp3dcat
-        elif self.conf["dataset_type"] in ["Replica", "replica"]:
-            self.categories = replica_cat
-        elif self.conf["dataset_type"] == "hm3dsem":
-            self.categories = hm3dsem_cat #! hm3dsem cat으로!
-            obs_extracter = build_obstacle_filter()
-            self.obstacles = obs_extracter(self.categories)
-        else:
-            raise ValueError(f"dataset_type {self.conf['dataset_type']} not supported")
+        self.model = build_vl_model("seem", input_size=360, device=self.conf["device"])
+        print(
+            f"[CategorizedMapBuilder] dataset_type={self.conf['dataset_type']} "
+            f"(canonical={self.dataset_type_key}), categories={len(self.categories)} "
+            f"source={self.category_source}, obstacle_source={self.obstacle_source}, "
+            f"obstacles={len(self.obstacles)}"
+        )
         text_feats = self.model.encode_prompt(self.categories, task = "default")
         text_feats = text_feats.cpu().numpy()
         instance_feat = []
@@ -137,6 +142,11 @@ class CategorizedMapBuilder():
                             i,j = coord
                             if self.dataloader.grid_map[i,j][id][1] < self.max_obs_height: 
                                 self.new_mask[i,j] = 0
+            # inst_val = new_instance_dict[id]
+            # if "door" in inst_val["category"]:
+            #     for coord in np.argwhere(inst_val["mask"]==1):
+            #         i,j = coord
+            #         self.new_mask[i,j] = 1
         for i in range(self.dataloader.grid_map.shape[0]):
             for j in range(self.dataloader.grid_map.shape[1]):
                 if len(self.dataloader.grid_map[i,j].keys()) == 0 : continue
@@ -158,4 +168,3 @@ class CategorizedMapBuilder():
         self.dataloader.save_map(is_walls=True,window_mask=self.window_mask)
         self.dataloader.save_map(is_walls=True,door_mask=self.door_mask)
         self.dataloader.save_map(is_walls=True,others_mask=self.others_mask)
-

@@ -1,0 +1,39 @@
+default:
+  # Shared profile schema:
+  # - depth_intr/depth_scale: camera intrinsics and depth unit conversion
+  # - quat_base_transform: base-frame transform for quat pose pipeline
+  # - map_from_world_tf/map_plane_axes/map_height_axis: world->map canonicalization
+  # Existing map code still reads mat_depth_* keys; loader mirrors depth_* -> mat_depth_*.
+  depth_intr: null
+  depth_scale: 1.0
+  quat_base_transform:
+    - [1.0, 0.0, 0.0, 0.0]
+    - [0.0, 0.0, 1.0, 0.0]
+    - [0.0, 1.0, 0.0, 0.0]
+    - [0.0, 0.0, 0.0, 1.0]
+  add_camera_height_for_mat: true
+  rectify_pose_rot: false
+  base2cam_tf: null
+  map_from_world_tf:
+    - [1.0, 0.0, 0.0, 0.0]
+    - [0.0, 1.0, 0.0, 0.0]
+    - [0.0, 0.0, 1.0, 0.0]
+    - [0.0, 0.0, 0.0, 1.0]
+  map_plane_axes: [0, 1]
+  map_height_axis: 2
+  map_height_offset: 0.0
+
+mp3d:
+  depth_scale: 6553.5
+
+replica:
+  depth_intr:
+    - [600.0, 0.0, 599.5]
+    - [0.0, 600.0, 339.5]
+    - [0.0, 0.0, 1.0]
+  depth_scale: 6553.5
+
+hm3dsem:
+  depth_scale: 1000.0
+  map_plane_axes: [0, 2]
+  map_height_axis: 1
